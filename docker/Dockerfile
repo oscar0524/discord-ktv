@@ -4,9 +4,15 @@
 #
 # 建置（在專案根目錄）：
 #   docker build -f docker/Dockerfile -t discord-ktv .
-# 執行：
-#   docker run --rm -p 3333:3333 -e DISCORD_TOKEN=xxx discord-ktv
+# 執行（用環境變數注入 Discord 設定）：
+#   docker run --rm -p 3333:3333 \
+#     -e DISCORD_TOKEN=xxx \
+#     -e DISCORD_KTV_CHANNEL_ID=123456789 \
+#     discord-ktv
 #   打開 http://localhost:3333
+#
+# 也可用 --env-file 一次帶入：
+#   docker run --rm -p 3333:3333 --env-file .env discord-ktv
 
 # ---------- Stage 1: build ----------
 FROM node:20-bookworm-slim AS build
@@ -45,9 +51,14 @@ COPY --from=build /workspace/dist/apps/web /app/web
 
 COPY docker/supervisord.conf /etc/supervisor/conf.d/discord-ktv.conf
 
+# Discord 設定：透過 docker run -e / --env-file 於執行期覆寫。
+# 這裡宣告預設值（空字串），讓 supervisord 的 %(ENV_...)s 展開一定有值，
+# 避免未設定時 supervisord 因找不到環境變數而啟動失敗。
 ENV NODE_ENV=production \
     REDIS_URL=redis://127.0.0.1:6379 \
-    API_PORT=3333
+    API_PORT=3333 \
+    DISCORD_TOKEN="" \
+    DISCORD_KTV_CHANNEL_ID=""
 
 EXPOSE 3333
 
