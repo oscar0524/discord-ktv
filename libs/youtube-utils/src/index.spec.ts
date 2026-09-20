@@ -1,4 +1,4 @@
-import { parseVideoId, isYouTubeUrl } from './index';
+import { parseVideoId, isYouTubeUrl, fetchVideoTitle } from './index';
 
 const VALID_ID = 'dQw4w9WgXcQ';
 
@@ -77,5 +77,71 @@ describe('isYouTubeUrl', () => {
   });
   it('對無法解析的字串回傳 false', () => {
     expect(isYouTubeUrl('https://example.com')).toBe(false);
+  });
+});
+
+describe('fetchVideoTitle', () => {
+  const VALID_ID = 'dQw4w9WgXcQ';
+
+  function mockFetch(
+    impl: (url: string, init?: RequestInit) => Promise<Partial<Response>>
+  ): typeof fetch {
+    return jest.fn(impl) as unknown as typeof fetch;
+  }
+
+  it('成功時回傳去除首尾空白的標題', async () => {
+    const fetch = mockFetch(async () => ({
+      ok: true,
+      json: async () => ({ title: '  Never Gonna Give You Up  ' }),
+    }));
+
+    const title = await fetchVideoTitle(VALID_ID, { fetch });
+    expect(title).toBe('Never Gonna Give You Up');
+  });
+
+  it('呼叫 oEmbed 端點並帶上正確的 url 與 format 參數', async () => {
+    const fetch = mockFetch(async (url) => {
+      expect(url).toContain('https://www.youtube.com/oembed');
+      expect(url).toContain(
+        encodeURIComponent(`https://www.youtube.com/watch?v=${VALID_ID}`)
+      );
+      expect(url).toContain('format=json');
+      return { ok: true, json: async () => ({ title: 'ok' }) };
+    });
+
+    expect(await fetchVideoTitle(VALID_ID, { fetch })).toBe('ok');
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('無效 videoId 直接回 null 且不呼叫 fetch', async () => {
+    const fetch = mockFetch(async () => ({ ok: true, json: async () => ({}) }));
+    expect(await fetchVideoTitle('short', { fetch })).toBeNull();
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('HTTP 非 2xx（例如影片不存在）回傳 null', async () => {
+    const fetch = mockFetch(async () => ({ ok: false, status: 404 }));
+    expect(await fetchVideoTitle(VALID_ID, { fetch })).toBeNull();
+  });
+
+  it('fetch 拋錯（網路錯誤 / abort）回傳 null', async () => {
+    const fetch = mockFetch(async () => {
+      throw new Error('network down');
+    });
+    expect(await fetchVideoTitle(VALID_ID, { fetch })).toBeNull();
+  });
+
+  it('回應缺少 title 欄位或為空字串時回傳 null', async () => {
+    const missing = mockFetch(async () => ({
+      ok: true,
+      json: async () => ({}),
+    }));
+    expect(await fetchVideoTitle(VALID_ID, { fetch: missing })).toBeNull();
+
+    const blank = mockFetch(async () => ({
+      ok: true,
+      json: async () => ({ title: '   ' }),
+    }));
+    expect(await fetchVideoTitle(VALID_ID, { fetch: blank })).toBeNull();
   });
 });

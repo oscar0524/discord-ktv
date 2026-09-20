@@ -23,16 +23,19 @@ describe('applyIntent', () => {
       });
   });
 
-  it('enqueue：寫入佇列並 publish QueueUpdated，回覆含 videoId', async () => {
+  it('enqueue：寫入佇列並 publish QueueUpdated，回覆含歌名', async () => {
+    const resolveTitle = jest.fn().mockResolvedValue('Never Gonna Give You Up');
     const reply = await applyIntent(
       { kind: 'enqueue', videoId: 'dQw4w9WgXcQ' },
-      { store, pub: redis, requestedBy: 'oscar' }
+      { store, pub: redis, requestedBy: 'oscar', resolveTitle }
     );
-    expect(reply).toContain('dQw4w9WgXcQ');
+    expect(reply).toContain('Never Gonna Give You Up');
 
     const state = await store.getState();
     expect(state.current?.videoId).toBe('dQw4w9WgXcQ');
+    expect(state.current?.title).toBe('Never Gonna Give You Up');
     expect(state.current?.requestedBy).toBe('oscar');
+    expect(resolveTitle).toHaveBeenCalledWith('dQw4w9WgXcQ');
 
     expect(published).toHaveLength(1);
     expect((published[0] as { type: string }).type).toBe(
@@ -40,14 +43,27 @@ describe('applyIntent', () => {
     );
   });
 
+  it('enqueue：抓標題失敗（回 null）時不設 title，回覆 fallback 到 videoId', async () => {
+    const resolveTitle = jest.fn().mockResolvedValue(null);
+    const reply = await applyIntent(
+      { kind: 'enqueue', videoId: 'dQw4w9WgXcQ' },
+      { store, pub: redis, requestedBy: 'oscar', resolveTitle }
+    );
+    expect(reply).toContain('dQw4w9WgXcQ');
+
+    const state = await store.getState();
+    expect(state.current?.title).toBeUndefined();
+  });
+
   it('skip：推進佇列並 publish Skip + QueueUpdated', async () => {
+    const resolveTitle = jest.fn().mockResolvedValue(null);
     await applyIntent(
       { kind: 'enqueue', videoId: 'aaaaaaaaaaa' },
-      { store, pub: redis, requestedBy: 'u1' }
+      { store, pub: redis, requestedBy: 'u1', resolveTitle }
     );
     await applyIntent(
       { kind: 'enqueue', videoId: 'bbbbbbbbbbb' },
-      { store, pub: redis, requestedBy: 'u2' }
+      { store, pub: redis, requestedBy: 'u2', resolveTitle }
     );
     published.length = 0;
 

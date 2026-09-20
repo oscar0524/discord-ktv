@@ -28,10 +28,12 @@ services:
     depends_on:
       redis:
         condition: service_healthy
+    env_file:
+      - ../.env
     environment:
+      # env_file (../.env) 提供 DISCORD_TOKEN / DISCORD_KTV_CHANNEL_ID；
+      # 此處只覆寫容器內連線用的 REDIS_URL。
       - REDIS_URL=redis://redis:6379
-      - DISCORD_TOKEN=${DISCORD_TOKEN:-}
-      - DISCORD_KTV_CHANNEL_ID=${DISCORD_KTV_CHANNEL_ID:-}
     volumes:
       - ..:/workspace
       - bot_node_modules:/workspace/node_modules

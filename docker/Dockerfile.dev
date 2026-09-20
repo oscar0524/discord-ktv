@@ -8,6 +8,11 @@ WORKDIR /workspace
 # 先複製 manifest 以利依賴層快取
 COPY package.json package-lock.json ./
 RUN npm ci
+# npm 對 optional dependencies 有已知 bug（npm/cli#4828），
+# npm ci 有時不會安裝當前平台的 rollup native binary，導致 vite/web 啟動失敗。
+# 這裡針對安裝後仍缺少的 rollup 平台套件補裝，確保 web 服務可正常啟動。
+RUN node -e "try{require('rollup/dist/native.js')}catch(e){process.exit(1)}" \
+    || npm install --no-save --no-audit --no-fund rollup
 
 # 其餘原始碼於 docker-compose 以 volume 掛載（開發時熱重載）
 CMD ["node", "--version"]

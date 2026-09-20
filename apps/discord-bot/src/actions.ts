@@ -4,7 +4,14 @@ import {
   type KtvEvent,
 } from '@discord-ktv/shared-types';
 import { KtvStore, publishEvent, type Redis } from '@discord-ktv/redis-client';
+import { fetchVideoTitle } from '@discord-ktv/youtube-utils';
 import type { MessageIntent } from './message-handler';
+
+/**
+ * 抓取影片標題的執行器型別；預設用 youtube-utils 的 fetchVideoTitle，
+ * 抽成可注入依賴以便測試時不打真正的網路。
+ */
+export type TitleResolver = (videoId: string) => Promise<string | null>;
 
 /**
  * 依據意圖執行副作用：更新 Redis 佇列狀態並發布事件。
@@ -15,13 +22,26 @@ import type { MessageIntent } from './message-handler';
  */
 export async function applyIntent(
   intent: MessageIntent,
-  deps: { store: KtvStore; pub: Redis; requestedBy: string }
+  deps: {
+    store: KtvStore;
+    pub: Redis;
+    requestedBy: string;
+    /** 抓標題執行器，預設用 youtube-utils 的 fetchVideoTitle */
+    resolveTitle?: TitleResolver;
+  }
 ): Promise<string | null> {
   const { store, pub, requestedBy } = deps;
+  const resolveTitle = deps.resolveTitle ?? fetchVideoTitle;
 
   switch (intent.kind) {
     case 'enqueue': {
-      const song = createSong(intent.videoId, requestedBy);
+      // 盡力抓 YouTube 標題當歌名；失敗回 null，讓前端 fallback 到 videoId
+      const title = await resolveTitle(intent.videoId);
+      const song = createSong(
+        intent.videoId,
+        requestedBy,
+        title ? { title } : {}
+      );
       const state = await store.enqueue(song);
       await publishEvent(pub, {
         type: KtvEventType.QueueUpdated,
@@ -29,7 +49,8 @@ export async function applyIntent(
       });
       const position =
         state.current?.id === song.id ? '即將播放' : `第 ${state.items.length} 順位`;
-      return `已點歌 🎵 videoId=${song.videoId}（${position}）`;
+      const label = song.title ?? `videoId=${song.videoId}`;
+      return `已點歌 🎵 ${label}（${position}）`;
     }
 
     case 'skip': {

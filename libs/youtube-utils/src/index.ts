@@ -78,3 +78,75 @@ export function parseVideoId(input: string): string | null {
 export function isYouTubeUrl(input: string): boolean {
   return parseVideoId(input) !== null;
 }
+
+/** fetchVideoTitle 的可注入依賴，方便測試時替換掉真正的網路請求 */
+export interface FetchVideoTitleDeps {
+  /** 對應 global fetch，測試可注入 mock */
+  fetch?: typeof fetch;
+  /** 逾時毫秒數，預設 5000ms */
+  timeoutMs?: number;
+}
+
+/** YouTube oEmbed 端點；免 API key，回傳的 JSON 內含影片標題 */
+const OEMBED_ENDPOINT = 'https://www.youtube.com/oembed';
+
+/**
+ * 透過 YouTube oEmbed 取得影片標題。
+ *
+ * 設計為「盡力而為」：任何失敗（網路錯誤、逾時、影片不存在或私人、
+ * 回應非預期格式）都回傳 null，讓呼叫端 fallback 到 videoId，
+ * 點歌流程不因抓標題失敗而中斷。
+ *
+ * @param videoId 11 碼 YouTube video id
+ * @param deps 可注入的 fetch 與逾時設定（測試用）
+ * @returns 成功時回傳非空標題字串，否則回傳 null
+ */
+export async function fetchVideoTitle(
+  videoId: string,
+  deps: FetchVideoTitleDeps = {}
+): Promise<string | null> {
+  if (!isValidVideoId(videoId)) {
+    return null;
+  }
+
+  const fetchFn = deps.fetch ?? globalThis.fetch;
+  if (typeof fetchFn !== 'function') {
+    return null;
+  }
+
+  const timeoutMs = deps.timeoutMs ?? 5000;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const target = new URL(OEMBED_ENDPOINT);
+    target.searchParams.set(
+      'url',
+      `https://www.youtube.com/watch?v=${videoId}`
+    );
+    target.searchParams.set('format', 'json');
+
+    const res = await fetchFn(target.toString(), {
+      signal: controller.signal,
+    });
+    if (!res.ok) {
+      return null;
+    }
+
+    const data: unknown = await res.json();
+    const title =
+      typeof data === 'object' && data !== null
+        ? (data as { title?: unknown }).title
+        : undefined;
+
+    if (typeof title === 'string' && title.trim().length > 0) {
+      return title.trim();
+    }
+    return null;
+  } catch {
+    // 網路錯誤 / abort / JSON 解析失敗都視為抓不到標題
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}

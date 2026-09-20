@@ -87,7 +87,10 @@ export function Player({ current }: { current: Song | null }) {
       playerRef.current?.destroy();
       playerRef.current = null;
     };
-  }, [current?.videoId, current]);
+    // 只在「播放中的影片」真的換了才重建播放器。
+    // 佇列變動會產生全新的 QueueState/current 物件參考，但 videoId 不變，
+    // 若把整個 current 放進依賴會導致每次排歌都重建 player → 影片重播。
+  }, [current?.videoId]);
 
   if (!current) {
     return (
