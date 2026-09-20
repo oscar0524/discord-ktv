@@ -40,3 +40,16 @@ Thumbs.db
 
 .nx/cache
 .nx/workspace-data
+
+# env
+.env
+.env.local
+*.local
+
+# build outputs
+/dist
+/apps/**/dist
+/libs/**/dist
+
+# vite
+apps/web/.vite

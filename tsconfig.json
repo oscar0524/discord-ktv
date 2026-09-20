@@ -2,5 +2,12 @@
   "extends": "./tsconfig.base.json",
   "compileOnSave": false,
   "files": [],
-  "references": []
+  "references": [
+    { "path": "./libs/shared-types" },
+    { "path": "./libs/youtube-utils" },
+    { "path": "./libs/redis-client" },
+    { "path": "./apps/discord-bot" },
+    { "path": "./apps/api" },
+    { "path": "./apps/web" }
+  ]
 }

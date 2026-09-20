@@ -1,0 +1,11 @@
+/* Tailwind：preflight 已在 config 關閉，故此處只帶 components / utilities */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}

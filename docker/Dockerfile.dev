@@ -1,0 +1,13 @@
+# 開發用共用映像：Node 環境 + 全 workspace 依賴。
+# 三個 node 服務（discord-bot / api / web）共用此映像，
+# 由 docker-compose 針對各服務覆寫 command，並掛載原始碼支援熱重載。
+FROM node:20-bookworm-slim
+
+WORKDIR /workspace
+
+# 先複製 manifest 以利依賴層快取
+COPY package.json package-lock.json ./
+RUN npm ci
+
+# 其餘原始碼於 docker-compose 以 volume 掛載（開發時熱重載）
+CMD ["node", "--version"]

@@ -1,34 +1,32 @@
 {
   "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@discord-ktv/shared-types": ["libs/shared-types/src/index.ts"],
+      "@discord-ktv/youtube-utils": ["libs/youtube-utils/src/index.ts"],
+      "@discord-ktv/redis-client": ["libs/redis-client/src/index.ts"]
+    },
     "allowJs": false,
     "allowSyntheticDefaultImports": true,
-    "composite": true,
     "declaration": true,
-    "declarationMap": true,
-    "emitDeclarationOnly": true,
     "emitDecoratorMetadata": false,
     "esModuleInterop": true,
     "experimentalDecorators": false,
     "forceConsistentCasingInFileNames": true,
     "importHelpers": true,
-    "incremental": true,
     "isolatedModules": true,
-    "lib": ["es2022"],
-    "module": "NodeNext",
-    "moduleResolution": "NodeNext",
-    "noEmitOnError": true,
+    "lib": ["es2022", "dom"],
+    "module": "commonjs",
+    "moduleResolution": "node",
     "noFallthroughCasesInSwitch": true,
     "noImplicitOverride": true,
     "noImplicitReturns": true,
-    "noUnusedLocals": true,
     "pretty": true,
-    "removeComments": false,
-    "resolveJsonModule": false,
-    "skipDefaultLibCheck": false,
+    "resolveJsonModule": true,
     "skipLibCheck": true,
-    "sourceMap": false,
+    "sourceMap": true,
     "strict": true,
-    "target": "es2022",
-    "verbatimModuleSyntax": false
-  }
+    "target": "es2022"
+  },
+  "exclude": ["node_modules", "tmp", "dist"]
 }

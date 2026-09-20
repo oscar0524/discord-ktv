@@ -1,0 +1,29 @@
+{
+  "name": "redis-client",
+  "sourceRoot": "libs/redis-client/src",
+  "projectType": "library",
+  "targets": {
+    "build": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc -p libs/redis-client/tsconfig.json",
+        "cwd": "."
+      }
+    },
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc -p libs/redis-client/tsconfig.json",
+        "cwd": "."
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "jest --config libs/redis-client/jest.config.ts",
+        "cwd": "."
+      }
+    }
+  },
+  "tags": ["scope:shared", "type:data"]
+}

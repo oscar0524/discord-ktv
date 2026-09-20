@@ -1,109 +1,111 @@
-# DkNx
+# Discord KTV 🎤
 
-<a alt="Nx logo" href="https://nx.dev" target="_blank" rel="noreferrer"><img src="https://raw.githubusercontent.com/nrwl/nx/master/images/nx-logo.png" width="45"></a>
+透過 Discord 貼上 YouTube 連結點歌，由單一大螢幕依全域佇列自動播放的 KTV 系統。
+以 Nx monorepo 管理，含 Discord bot、Express API、React 前端與共用 libs。
 
-✨ Your new, shiny [Nx workspace](https://nx.dev) is ready ✨.
+> 本專案目前為**基礎框架**：主線（Discord 貼連結 → Redis → WebSocket → 大螢幕播放）可運作，
+> 各元件為可啟動的骨架，細節功能待後續擴充。
 
-[Learn more about this workspace setup and its capabilities](https://nx.dev/nx-api/js?utm_source=nx_project&amp;utm_medium=readme&amp;utm_campaign=nx_projects) or run `npx nx graph` to visually explore what was created. Now, let's get you up to speed!
-
-## Generate a library
-
-```sh
-npx nx g @nx/js:lib packages/pkg1 --publishable --importPath=@my-org/pkg1
-```
-
-## Run tasks
-
-To build the library use:
-
-```sh
-npx nx build pkg1
-```
-
-To run any task with Nx use:
-
-```sh
-npx nx <target> <project-name>
-```
-
-These targets are either [inferred automatically](https://nx.dev/concepts/inferred-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) or defined in the `project.json` or `package.json` files.
-
-[More about running tasks in the docs &raquo;](https://nx.dev/features/run-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-
-## Versioning and releasing
-
-To version and release the library use
+## 架構
 
 ```
-npx nx release
+Discord ──連結/指令──► discord-bot ──enqueue/publish──► Redis（佇列 + Pub/Sub）
+                                                          ▲  │ subscribe
+                                                          │  ▼
+                              大螢幕 ◄──WebSocket── api（Express + ws）
+                                    ──REST 控制/播完──►
 ```
 
-Pass `--dry-run` to see what would happen without actually releasing the library.
+詳見 [specs/overview.md](./specs/overview.md)。
 
-[Learn more about Nx release &raquo;](hhttps://nx.dev/features/manage-releases?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+## 專案結構
 
-## Keep TypeScript project references up to date
-
-Nx automatically updates TypeScript [project references](https://www.typescriptlang.org/docs/handbook/project-references.html) in `tsconfig.json` files to ensure they remain accurate based on your project dependencies (`import` or `require` statements). This sync is automatically done when running tasks such as `build` or `typecheck`, which require updated references to function correctly.
-
-To manually trigger the process to sync the project graph dependencies information to the TypeScript project references, run the following command:
-
-```sh
-npx nx sync
+```
+apps/
+  discord-bot/   Discord Gateway：解析連結與指令，更新佇列並發事件
+  api/           Express REST + WebSocket，訂閱 Redis 事件並推播；可提供 web 靜態產物
+  web/           React + MUI + Tailwind 大螢幕播放器（YouTube iframe，含日夜主題）
+libs/
+  shared-types/  共用型別與事件協定
+  redis-client/  ioredis 連線、佇列存取、Pub/Sub
+  youtube-utils/ 從連結解析 video id
+docker/          開發用 compose 與集成用 all-in-one Dockerfile
+specs/           系統概觀、Redis schema、事件協定、API 介面
 ```
 
-You can enforce that the TypeScript project references are always in the correct state when running in CI by adding a step to your CI job configuration that runs the following command:
+## 技術選擇
 
-```sh
-npx nx sync:check
+- Monorepo：Nx 20 + npm workspaces
+- Bot：discord.js 14（需 Node 20+）
+- API：Express 4 + ws（WebSocket）
+- 前端：React 18 + Vite 5 + MUI 5 + Tailwind 3（日夜主題）
+- 資料/訊息：Redis + ioredis（佇列 + Pub/Sub）
+
+## 環境變數
+
+複製 `.env.example` 為 `.env` 並填入：
+
+| 變數 | 用途 |
+| --- | --- |
+| `DISCORD_TOKEN` | Discord bot token（必填，[Developer Portal](https://discord.com/developers/applications)） |
+| `DISCORD_KTV_CHANNEL_ID` | 限制 bot 只回應的頻道 id（可選，留空為全部） |
+| `REDIS_URL` | Redis 連線字串（預設 `redis://localhost:6379`） |
+| `API_PORT` | API 埠（預設 `3333`） |
+| `VITE_API_URL` / `VITE_WS_URL` | 前端連線 API 的 URL |
+| `WEB_PORT` | 前端 dev server 埠（預設 `4200`） |
+
+> Bot 需在 Developer Portal 開啟 **Message Content Intent** 才能讀到訊息內容。
+
+## 本機開發
+
+需要一個 Redis（可用 docker：`docker run -p 6379:6379 redis:7-alpine`）。
+
+```bash
+npm install
+
+# 分別在不同終端機啟動
+npm run serve:api    # Express + WebSocket，http://localhost:3333
+npm run serve:web    # Vite 前端，http://localhost:4200
+npm run serve:bot    # Discord bot（需先設定 DISCORD_TOKEN）
 ```
 
-[Learn more about nx sync](https://nx.dev/reference/nx-commands#sync)
+## 用 docker-compose 開發（含 Redis）
 
-## Set up CI!
+一鍵拉起 redis + bot + api + web，原始碼掛載支援熱重載：
 
-### Step 1
-
-To connect to Nx Cloud, run the following command:
-
-```sh
-npx nx connect
+```bash
+cp .env.example .env   # 填入 DISCORD_TOKEN
+docker compose -f docker/docker-compose.yml up
 ```
 
-Connecting to Nx Cloud ensures a [fast and scalable CI](https://nx.dev/ci/intro/why-nx-cloud?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) pipeline. It includes features such as:
+前端：<http://localhost:4200>　API：<http://localhost:3333>
 
-- [Remote caching](https://nx.dev/ci/features/remote-cache?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Task distribution across multiple machines](https://nx.dev/ci/features/distribute-task-execution?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Automated e2e test splitting](https://nx.dev/ci/features/split-e2e-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Task flakiness detection and rerunning](https://nx.dev/ci/features/flaky-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+## 集成部署（all-in-one 單一 image）
 
-### Step 2
+把 Redis、bot、api 與 web 產物打包進一個 image，用 supervisord 一起跑，
+web 由 api 以 Express static 提供：
 
-Use the following command to configure a CI workflow for your workspace:
-
-```sh
-npx nx g ci-workflow
+```bash
+docker build -f docker/Dockerfile -t discord-ktv .
+docker run --rm -p 3333:3333 -e DISCORD_TOKEN=your-token discord-ktv
+# 打開 http://localhost:3333
 ```
 
-[Learn more about Nx on CI](https://nx.dev/ci/intro/ci-with-nx#ready-get-started-with-your-provider?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+## 測試與建置
 
-## Install Nx Console
+```bash
+npm test         # 跑所有專案的單元測試
+npm run build    # 建置所有 app（產物在 dist/apps/*）
+npm run graph    # 開啟 Nx 專案依賴圖
 
-Nx Console is an editor extension that enriches your developer experience. It lets you run tasks, generate code, and improves code autocompletion in your IDE. It is available for VSCode and IntelliJ.
+# 單一專案
+npx nx test youtube-utils
+npx nx build api
+```
 
-[Install Nx Console &raquo;](https://nx.dev/getting-started/editor-setup?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+## 文件
 
-## Useful links
-
-Learn more:
-
-- [Learn more about this workspace setup](https://nx.dev/nx-api/js?utm_source=nx_project&amp;utm_medium=readme&amp;utm_campaign=nx_projects)
-- [Learn about Nx on CI](https://nx.dev/ci/intro/ci-with-nx?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Releasing Packages with Nx release](https://nx.dev/features/manage-releases?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [What are Nx plugins?](https://nx.dev/concepts/nx-plugins?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-
-And join the Nx community:
-- [Discord](https://go.nx.dev/community)
-- [Follow us on X](https://twitter.com/nxdevtools) or [LinkedIn](https://www.linkedin.com/company/nrwl)
-- [Our Youtube channel](https://www.youtube.com/@nxdevtools)
-- [Our blog](https://nx.dev/blog?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+- [系統概觀](./specs/overview.md)
+- [Redis 資料結構](./specs/redis-schema.md)
+- [事件與 WebSocket 協定](./specs/events.md)
+- [API 介面](./specs/api.md)
