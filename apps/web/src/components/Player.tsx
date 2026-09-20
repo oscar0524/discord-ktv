@@ -83,7 +83,8 @@ export function Player({
       host.appendChild(mount);
       playerRef.current = new YT.Player(mount, {
         videoId: current.videoId,
-        playerVars: { autoplay: 1 },
+        // cc_load_policy: 0 → 不預設開啟字幕（CC）。
+        playerVars: { autoplay: 1, cc_load_policy: 0 },
         events: {
           onStateChange: (e) => {
             if (e.data === YT.PlayerState.ENDED) {

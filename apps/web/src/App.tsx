@@ -40,13 +40,32 @@ export function App() {
           overflowY: 'hidden',
         }}
       >
-          <Box className="flex items-center justify-between">
-            <Typography variant="subtitle1">
+          <Box className="flex flex-col gap-1">
+            <Typography
+              variant="subtitle1"
+              sx={{
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}
+            >
               {state.current
-                ? `播放中：${state.current.title ?? state.current.videoId}`
+                ? `播放中：${state.current.title ?? state.current.videoId}（點歌：${state.current.requestedBy}）`
                 : '尚無播放中的歌曲'}
             </Typography>
-            <Controls isPaused={state.isPaused} />
+            <Typography
+              variant="body2"
+              color="text.secondary"
+              sx={{
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {state.items.length > 0
+                ? `下一首：${state.items[0].title ?? state.items[0].videoId}（點歌：${state.items[0].requestedBy}）`
+                : '下一首：無'}
+            </Typography>
           </Box>
           <Player current={state.current} isPaused={state.isPaused} />
         
@@ -89,7 +108,7 @@ export function App() {
 
         <Divider />
 
-        {open && (
+        {open ? (
           <Box className="flex flex-col gap-3 p-3 overflow-y-auto">
             <Box className="flex items-center gap-2">
               <Chip
@@ -101,7 +120,13 @@ export function App() {
               <Box className="flex-1" />
               <ThemeToggle />
             </Box>
+            <Controls isPaused={state.isPaused} />
             <QueueList state={state} />
+          </Box>
+        ) : (
+          // 收合時：控制鈕以 icon 形式顯示在側欄軌道上
+          <Box className="flex flex-col items-center gap-2 py-2">
+            <Controls isPaused={state.isPaused} collapsed />
           </Box>
         )}
       </Drawer>
