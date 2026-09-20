@@ -1,60 +1,18 @@
 import { useEffect, useRef } from 'react';
 import { Box, Typography } from '@mui/material';
 import type { Song } from '@discord-ktv/shared-types';
+import YouTubePlayer from 'youtube-player';
+import type { YouTubePlayer as YouTubePlayerInstance } from 'youtube-player/dist/types';
 import { api } from '../api/client';
 
 /**
- * YouTube 播放器。使用 IFrame Player API 以取得「播放結束」事件，
+ * YouTube 播放器。使用 youtube-player 套件封裝 IFrame Player API：
+ * 由套件負責載入 API、註冊 onYouTubeIframeAPIReady、並在 player ready 前排入呼叫。
  * 播完後呼叫 api.playbackEnded() 讓後端推進佇列（自動下一首）。
- *
- * 為維持骨架階段簡單，若 YT API 尚未載入，仍會以 iframe 顯示影片，
- * onEnd 綁定則於 API ready 後補上。
  */
 
-// 最小化的 YT 型別宣告（避免額外安裝 @types）
-interface YTPlayer {
-  destroy(): void;
-  pauseVideo(): void;
-  playVideo(): void;
-}
-interface YTNamespace {
-  Player: new (
-    el: HTMLElement,
-    opts: {
-      videoId: string;
-      events?: { onStateChange?: (e: { data: number }) => void };
-      playerVars?: Record<string, number>;
-    }
-  ) => YTPlayer;
-  PlayerState: { ENDED: number };
-}
-declare global {
-  interface Window {
-    YT?: YTNamespace;
-    onYouTubeIframeAPIReady?: () => void;
-  }
-}
-
-const YT_API_SRC = 'https://www.youtube.com/iframe_api';
-
-function ensureYouTubeApi(): Promise<YTNamespace> {
-  return new Promise((resolve) => {
-    if (window.YT?.Player) {
-      resolve(window.YT);
-      return;
-    }
-    const prev = window.onYouTubeIframeAPIReady;
-    window.onYouTubeIframeAPIReady = () => {
-      prev?.();
-      if (window.YT) resolve(window.YT);
-    };
-    if (!document.querySelector(`script[src="${YT_API_SRC}"]`)) {
-      const tag = document.createElement('script');
-      tag.src = YT_API_SRC;
-      document.head.appendChild(tag);
-    }
-  });
-}
+// PlayerState.ENDED（影片播畢）。對應 YT.PlayerState.ENDED === 0。
+const PLAYER_STATE_ENDED = 0;
 
 export function Player({
   current,
@@ -64,60 +22,64 @@ export function Player({
   isPaused?: boolean;
 }) {
   const hostRef = useRef<HTMLDivElement | null>(null);
-  const playerRef = useRef<YTPlayer | null>(null);
+  const playerRef = useRef<YouTubePlayerInstance | null>(null);
   // 以 ref 保存最新的 isPaused，讓 player 建立當下能套用初始暫停狀態，
-  // 又不需把 isPaused 放進「重建 player」的依賴陣列。
+  // 又不需把 isPaused 放進「建立 player」的依賴陣列。
   const isPausedRef = useRef(isPaused);
   isPausedRef.current = isPaused;
 
   useEffect(() => {
     if (!current || !hostRef.current) return;
-    let cancelled = false;
     const host = hostRef.current;
 
-    void ensureYouTubeApi().then((YT) => {
-      if (cancelled) return;
-      playerRef.current?.destroy();
-      const mount = document.createElement('div');
-      host.innerHTML = '';
-      host.appendChild(mount);
-      playerRef.current = new YT.Player(mount, {
-        videoId: current.videoId,
-        // cc_load_policy: 0 → 不預設開啟字幕（CC）。
-        playerVars: { autoplay: 1, cc_load_policy: 0 },
-        events: {
-          onStateChange: (e) => {
-            if (e.data === YT.PlayerState.ENDED) {
-              void api.playbackEnded();
-            }
-          },
-        },
-      });
-      // 若換歌當下已是暫停狀態，套用到剛建立的 player。
-      if (isPausedRef.current) {
-        playerRef.current.pauseVideo();
+    // 已有 player：重用實例，只換影片（套件會排隊呼叫直到 ready）。
+    if (playerRef.current) {
+      void playerRef.current.loadVideoById(current.videoId);
+      return;
+    }
+
+    // 首次建立：掛載到 host 內的新 div。
+    const mount = document.createElement('div');
+    host.innerHTML = '';
+    host.appendChild(mount);
+
+    // 注意：cc_load_policy 型別僅接受 1（開啟字幕）。省略此鍵即為
+    // API 預設「不預設開啟字幕」，等同於舊碼的 cc_load_policy: 0。
+    const player = YouTubePlayer(mount, {
+      videoId: current.videoId,
+      playerVars: { autoplay: 1 },
+    });
+    playerRef.current = player;
+
+    player.on('stateChange', (event) => {
+      if (event.data === PLAYER_STATE_ENDED) {
+        void api.playbackEnded();
       }
     });
 
+    // 若建立當下已是暫停狀態，套用到剛建立的 player。
+    if (isPausedRef.current) {
+      void player.pauseVideo();
+    }
+
     return () => {
-      cancelled = true;
-      playerRef.current?.destroy();
+      void player.destroy();
       playerRef.current = null;
     };
-    // 只在「播放中的影片」真的換了才重建播放器。
+    // 只在「播放中的影片」真的換了才處理。
     // 佇列變動會產生全新的 QueueState/current 物件參考，但 videoId 不變，
-    // 若把整個 current 放進依賴會導致每次排歌都重建 player → 影片重播。
+    // 若把整個 current 放進依賴會導致每次排歌都重跑此 effect。
   }, [current?.videoId]);
 
   // 將 isPaused 套用到實際的 YouTube 播放器。
-  // 獨立於「重建 player」的 effect，避免暫停/繼續時重建播放器導致影片重播。
+  // 獨立於「建立 player」的 effect，避免暫停/繼續時重建播放器導致影片重播。
   useEffect(() => {
     const player = playerRef.current;
     if (!player) return;
     if (isPaused) {
-      player.pauseVideo();
+      void player.pauseVideo();
     } else {
-      player.playVideo();
+      void player.playVideo();
     }
   }, [isPaused]);
 
