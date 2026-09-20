@@ -2,7 +2,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { ThemeProvider } from './theme/ThemeContext';
 import App from './App';
-import './styles.css';
+import './styles.scss';
 
 const container = document.getElementById('root');
 if (!container) {
@@ -14,5 +14,5 @@ createRoot(container).render(
     <ThemeProvider>
       <App />
     </ThemeProvider>
-  </StrictMode>
+  </StrictMode>,
 );
