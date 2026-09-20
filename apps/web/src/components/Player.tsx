@@ -14,6 +14,8 @@ import { api } from '../api/client';
 // 最小化的 YT 型別宣告（避免額外安裝 @types）
 interface YTPlayer {
   destroy(): void;
+  pauseVideo(): void;
+  playVideo(): void;
 }
 interface YTNamespace {
   Player: new (
@@ -54,9 +56,19 @@ function ensureYouTubeApi(): Promise<YTNamespace> {
   });
 }
 
-export function Player({ current }: { current: Song | null }) {
+export function Player({
+  current,
+  isPaused = false,
+}: {
+  current: Song | null;
+  isPaused?: boolean;
+}) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const playerRef = useRef<YTPlayer | null>(null);
+  // 以 ref 保存最新的 isPaused，讓 player 建立當下能套用初始暫停狀態，
+  // 又不需把 isPaused 放進「重建 player」的依賴陣列。
+  const isPausedRef = useRef(isPaused);
+  isPausedRef.current = isPaused;
 
   useEffect(() => {
     if (!current || !hostRef.current) return;
@@ -80,6 +92,10 @@ export function Player({ current }: { current: Song | null }) {
           },
         },
       });
+      // 若換歌當下已是暫停狀態，套用到剛建立的 player。
+      if (isPausedRef.current) {
+        playerRef.current.pauseVideo();
+      }
     });
 
     return () => {
@@ -91,6 +107,18 @@ export function Player({ current }: { current: Song | null }) {
     // 佇列變動會產生全新的 QueueState/current 物件參考，但 videoId 不變，
     // 若把整個 current 放進依賴會導致每次排歌都重建 player → 影片重播。
   }, [current?.videoId]);
+
+  // 將 isPaused 套用到實際的 YouTube 播放器。
+  // 獨立於「重建 player」的 effect，避免暫停/繼續時重建播放器導致影片重播。
+  useEffect(() => {
+    const player = playerRef.current;
+    if (!player) return;
+    if (isPaused) {
+      player.pauseVideo();
+    } else {
+      player.playVideo();
+    }
+  }, [isPaused]);
 
   if (!current) {
     return (
