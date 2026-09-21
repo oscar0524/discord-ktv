@@ -12,7 +12,10 @@
     "serve:bot": "nx serve discord-bot",
     "serve:api": "nx serve api",
     "serve:web": "nx serve web",
-    "graph": "nx graph"
+    "graph": "nx graph",
+    "docker:build": "scripts/docker-build.sh",
+    "docker:build:amd64": "PLATFORM=linux/amd64 scripts/docker-build.sh",
+    "docker:build:arm64": "PLATFORM=linux/arm64 scripts/docker-build.sh"
   },
   "workspaces": [
     "apps/*",
