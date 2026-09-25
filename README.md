@@ -3,8 +3,9 @@
 透過 Discord 貼上 YouTube 連結點歌，由單一大螢幕依全域佇列自動播放的 KTV 系統。
 以 Nx monorepo 管理，含 Discord bot、Express API、React 前端與共用 libs。
 
-> 本專案目前為**基礎框架**：主線（Discord 貼連結 → Redis → WebSocket → 大螢幕播放）可運作，
-> 各元件為可啟動的骨架，細節功能待後續擴充。
+> 主線（Discord 貼連結 → Redis → WebSocket → 大螢幕播放）已可運作，並支援跳過/暫停/繼續、
+> 以編號插歌、網頁拖曳重排、彈幕、`help` 說明指令、YouTube 標題抓取，以及可於網頁調整並熱重連的
+> Discord 設定。
 
 ## 架構
 
@@ -45,14 +46,14 @@ specs/           系統概觀、Redis schema、事件協定、API 介面
 
 複製 `.env.example` 為 `.env` 並填入：
 
-| 變數 | 用途 |
-| --- | --- |
-| `DISCORD_TOKEN` | Discord bot token（必填，[Developer Portal](https://discord.com/developers/applications)） |
-| `DISCORD_KTV_CHANNEL_ID` | 限制 bot 只回應的頻道 id（可選，留空為全部） |
-| `REDIS_URL` | Redis 連線字串（預設 `redis://localhost:6379`） |
-| `API_PORT` | API 埠（預設 `3333`） |
-| `VITE_API_URL` / `VITE_WS_URL` | 前端連線 API 的 URL |
-| `WEB_PORT` | 前端 dev server 埠（預設 `4200`） |
+| 變數                           | 用途                                                                                       |
+| ------------------------------ | ------------------------------------------------------------------------------------------ |
+| `DISCORD_TOKEN`                | Discord bot token（必填，[Developer Portal](https://discord.com/developers/applications)） |
+| `DISCORD_KTV_CHANNEL_ID`       | 限制 bot 只回應的頻道 id（可選，留空為全部）                                               |
+| `REDIS_URL`                    | Redis 連線字串（預設 `redis://localhost:6379`）                                            |
+| `API_PORT`                     | API 埠（預設 `3333`）                                                                      |
+| `VITE_API_URL` / `VITE_WS_URL` | 前端連線 API 的 URL                                                                        |
+| `WEB_PORT`                     | 前端 dev server 埠（預設 `4200`）                                                          |
 
 > Bot 需在 Developer Portal 開啟 **Message Content Intent** 才能讀到訊息內容。
 
