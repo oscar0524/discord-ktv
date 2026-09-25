@@ -12,3 +12,13 @@ body,
   height: $full-height;
   margin: 0;
 }
+
+// 彈幕：從右緣外側飄到左緣外側
+@keyframes ktv-danmaku-scroll {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(-100%);
+  }
+}

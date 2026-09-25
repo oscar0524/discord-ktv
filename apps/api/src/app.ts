@@ -63,6 +63,8 @@ function isValidChannelId(value: unknown): value is string | null {
  * - POST /control/skip      發布 Skip 事件
  * - POST /control/pause     發布 Pause 事件
  * - POST /control/play      發布 Play 事件
+ * - POST /control/move-front 發布 QueueMoveToFront 事件（body: { songNumber }）
+ * - POST /control/reorder    發布 QueueReorder 事件（body: { orderedIds }）
  * - POST /playback/ended    大螢幕播完一首，推進到下一首（等同 skip 的語意）
  * - GET  /config/discord    取得 Discord 設定的遮罩狀態（hasToken / channelId）
  * - PUT  /config/discord    更新 Discord 設定，寫入 Redis 後 publish ConfigUpdated
@@ -96,6 +98,37 @@ export function createApp(deps: AppDeps): Express {
 
   app.post('/control/play', async (_req: Request, res: Response) => {
     await publish({ type: KtvEventType.Play, payload: {} });
+    res.json({ ok: true });
+  });
+
+  // 把指定編號的歌插到最前面。僅發事件，由訂閱端套用 store.moveToFront 並廣播。
+  app.post('/control/move-front', async (req: Request, res: Response) => {
+    const body = (req.body ?? {}) as { songNumber?: unknown };
+    if (typeof body.songNumber !== 'number' || !Number.isInteger(body.songNumber)) {
+      res.status(400).json({ error: 'songNumber 必須為整數' });
+      return;
+    }
+    await publish({
+      type: KtvEventType.QueueMoveToFront,
+      payload: { songNumber: body.songNumber },
+    });
+    res.json({ ok: true });
+  });
+
+  // 依完整 id 順序重排待播清單。僅發事件，由訂閱端套用 store.reorder 並廣播。
+  app.post('/control/reorder', async (req: Request, res: Response) => {
+    const body = (req.body ?? {}) as { orderedIds?: unknown };
+    if (
+      !Array.isArray(body.orderedIds) ||
+      !body.orderedIds.every((id) => typeof id === 'string')
+    ) {
+      res.status(400).json({ error: 'orderedIds 必須為字串陣列' });
+      return;
+    }
+    await publish({
+      type: KtvEventType.QueueReorder,
+      payload: { orderedIds: body.orderedIds as string[] },
+    });
     res.json({ ok: true });
   });
 

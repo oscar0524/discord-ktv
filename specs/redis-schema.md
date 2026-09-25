@@ -7,6 +7,7 @@
 | Key                  | 型別           | 說明                                                                        |
 | -------------------- | -------------- | --------------------------------------------------------------------------- |
 | `ktv:queue:state`    | String（JSON） | 整個佇列狀態，序列化的 `QueueState`。                                       |
+| `ktv:queue:counter`  | String（int）  | 歌曲編號全域遞增計數器，以 `INCR` 取號並映射到 1000~9999 循環。             |
 | `ktv:config:discord` | String（JSON） | Discord bot 執行期設定，序列化的 `DiscordConfig`（`token` / `channelId`）。 |
 
 ### `ktv:queue:state` 的內容
@@ -23,6 +24,7 @@
       "title": "稻香", // 可選
       "requestedBy": "oscar",
       "requestedAt": 1737000000000,
+      "songNumber": 1234, // 4 位數字編號（1000~9999），供以編號插歌
     },
   ],
   "current": null, // 播放中的 Song，或 null
@@ -32,6 +34,12 @@
 
 設計說明：單一全域佇列、資料量小，整個狀態存一顆 key 最單純，也讓「推播完整
 `QueueState`」很自然。若未來要多包廂，改為 `ktv:room:{roomId}:state` 等 per-room key。
+
+### `ktv:queue:counter` 的內容
+
+單一整數字串，由 `KtvStore.nextSongNumber()` 以 `INCR` 原子遞增後，映射到 `1000~9999`
+的循環區間（超過 9999 繞回 1000）。用途是為每首 enqueue 的歌配發使用者好記的 4 位編號。
+`clear()` 不重置此計數器，維持 session 內編號持續遞增以降低短期內重號機率。
 
 ### `ktv:config:discord` 的內容
 
@@ -57,9 +65,9 @@
 
 ## Channels（Pub/Sub）
 
-| Channel      | 說明                                                                                                           |
-| ------------ | -------------------------------------------------------------------------------------------------------------- |
-| `ktv:events` | 所有 KTV 事件（`QueueUpdated` / `Skip` / `Pause` / `Play` / `ConfigUpdated`），payload 為序列化的 `KtvEvent`。 |
+| Channel      | 說明                                                                                                                                                 |
+| ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ktv:events` | 所有 KTV 事件（`QueueUpdated` / `Skip` / `Pause` / `Play` / `QueueMoveToFront` / `QueueReorder` / `ConfigUpdated`），payload 為序列化的 `KtvEvent`。 |
 
 事件格式與語意見 [events.md](./events.md)。
 

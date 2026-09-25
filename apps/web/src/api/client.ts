@@ -9,6 +9,15 @@ async function post(pathname: string): Promise<void> {
   await fetch(`${API_URL}${pathname}`, { method: 'POST' });
 }
 
+/** 送出帶 JSON body 的 POST（用於插歌 / 重排控制端點）。 */
+async function postJson(pathname: string, body: unknown): Promise<void> {
+  await fetch(`${API_URL}${pathname}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+}
+
 /** Discord 設定的遮罩狀態（GET /config/discord 回傳） */
 export interface DiscordConfigStatus {
   hasToken: boolean;
@@ -27,6 +36,14 @@ export const api = {
   play: () => post('/control/play'),
   /** 大螢幕播完一首時呼叫，推進到下一首 */
   playbackEnded: () => post('/playback/ended'),
+
+  /** 把指定編號的歌插到最前面（成為下一首）；結果由後端廣播回來。 */
+  moveToFront: (songNumber: number) =>
+    postJson('/control/move-front', { songNumber }),
+
+  /** 依完整 id 順序重排待播清單；結果由後端廣播回來。 */
+  reorder: (orderedIds: string[]) =>
+    postJson('/control/reorder', { orderedIds }),
 
   /** 取得 Discord 設定的遮罩狀態（不含明文 token） */
   async getDiscordConfig(): Promise<DiscordConfigStatus> {

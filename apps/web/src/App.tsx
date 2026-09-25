@@ -11,12 +11,16 @@ import {
 import MenuIcon from '@mui/icons-material/Menu';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import SettingsIcon from '@mui/icons-material/Settings';
+import CommentIcon from '@mui/icons-material/Comment';
+import CommentsDisabledIcon from '@mui/icons-material/CommentsDisabled';
 import { ThemeToggle } from './components/ThemeToggle';
 import { Player } from './components/Player';
 import { Controls } from './components/Controls';
 import { QueueList } from './components/QueueList';
 import { SettingsDialog } from './components/SettingsDialog';
+import { DanmakuOverlay } from './components/DanmakuOverlay';
 import { useQueue } from './api/useQueue';
+import { useDanmaku } from './danmaku/DanmakuContext';
 
 const SIDEBAR_WIDTH = 340;
 const SIDEBAR_COLLAPSED_WIDTH = 56;
@@ -24,6 +28,7 @@ const SIDEBAR_COLLAPSED_WIDTH = 56;
 /** KTV 大螢幕主頁：主內容 + 右側可收折側欄（整合原 AppBar 與待播清單）。 */
 export function App() {
   const { state, connected } = useQueue();
+  const { enabled: danmakuEnabled, toggle: toggleDanmaku } = useDanmaku();
   // 側欄預設折起來
   const [open, setOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -70,8 +75,10 @@ export function App() {
                 : '下一首：無'}
             </Typography>
           </Box>
-          <Player current={state.current} isPaused={state.isPaused} />
-        
+          <Box sx={{ position: 'relative', width: '100%' }}>
+            <Player current={state.current} isPaused={state.isPaused} />
+            <DanmakuOverlay />
+          </Box>
       </Box>
 
       {/* 右側可收折側欄 */}
@@ -132,6 +139,16 @@ export function App() {
                 data-testid="conn-status"
               />
               <Box className="flex-1" />
+              <Tooltip title={danmakuEnabled ? '關閉彈幕' : '開啟彈幕'}>
+                <IconButton
+                  onClick={toggleDanmaku}
+                  aria-label={danmakuEnabled ? '關閉彈幕' : '開啟彈幕'}
+                  data-testid="btn-toggle-danmaku"
+                  color={danmakuEnabled ? 'primary' : 'default'}
+                >
+                  {danmakuEnabled ? <CommentIcon /> : <CommentsDisabledIcon />}
+                </IconButton>
+              </Tooltip>
               <ThemeToggle />
             </Box>
             <Controls isPaused={state.isPaused} />
@@ -141,6 +158,16 @@ export function App() {
           // 收合時：控制鈕以 icon 形式顯示在側欄軌道上
           <Box className="flex flex-col items-center gap-2 py-2">
             <Controls isPaused={state.isPaused} collapsed />
+            <Tooltip title={danmakuEnabled ? '關閉彈幕' : '開啟彈幕'} placement="left">
+              <IconButton
+                onClick={toggleDanmaku}
+                aria-label={danmakuEnabled ? '關閉彈幕' : '開啟彈幕'}
+                data-testid="btn-toggle-danmaku"
+                color={danmakuEnabled ? 'primary' : 'default'}
+              >
+                {danmakuEnabled ? <CommentIcon /> : <CommentsDisabledIcon />}
+              </IconButton>
+            </Tooltip>
           </Box>
         )}
       </Drawer>

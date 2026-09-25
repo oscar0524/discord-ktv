@@ -65,6 +65,56 @@ describe('api app', () => {
     expect((last?.payload as { reason?: string }).reason).toBe('ended');
   });
 
+  describe('control/move-front', () => {
+    it('POST 帶合法 songNumber 發布 QueueMoveToFront 事件', async () => {
+      const { app, published } = setup();
+      const res = await request(app)
+        .post('/control/move-front')
+        .send({ songNumber: 1234 });
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual({ ok: true });
+      const last = published.at(-1);
+      expect(last?.type).toBe(KtvEventType.QueueMoveToFront);
+      expect((last?.payload as { songNumber: number }).songNumber).toBe(1234);
+    });
+
+    it('POST 非整數 songNumber 回 400、不 publish', async () => {
+      const { app, published } = setup();
+      const res = await request(app)
+        .post('/control/move-front')
+        .send({ songNumber: 'abc' });
+      expect(res.status).toBe(400);
+      expect(published).toHaveLength(0);
+    });
+  });
+
+  describe('control/reorder', () => {
+    it('POST 帶字串陣列 orderedIds 發布 QueueReorder 事件', async () => {
+      const { app, published } = setup();
+      const res = await request(app)
+        .post('/control/reorder')
+        .send({ orderedIds: ['a', 'b', 'c'] });
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual({ ok: true });
+      const last = published.at(-1);
+      expect(last?.type).toBe(KtvEventType.QueueReorder);
+      expect((last?.payload as { orderedIds: string[] }).orderedIds).toEqual([
+        'a',
+        'b',
+        'c',
+      ]);
+    });
+
+    it('POST orderedIds 非字串陣列回 400、不 publish', async () => {
+      const { app, published } = setup();
+      const res = await request(app)
+        .post('/control/reorder')
+        .send({ orderedIds: [1, 2, 3] });
+      expect(res.status).toBe(400);
+      expect(published).toHaveLength(0);
+    });
+  });
+
   describe('config/discord', () => {
     it('GET 未設定時回 hasToken=false、channelId=null', async () => {
       const { app } = setup();

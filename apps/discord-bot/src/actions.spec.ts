@@ -1,7 +1,7 @@
 import RedisMock from 'ioredis-mock';
 import { KtvStore, type Redis } from '@discord-ktv/redis-client';
 import { KtvEventType } from '@discord-ktv/shared-types';
-import { applyIntent } from './actions';
+import { applyIntent, formatQueueList } from './actions';
 
 describe('applyIntent', () => {
   let redis: Redis;
@@ -89,6 +89,116 @@ describe('applyIntent', () => {
 
     await applyIntent({ kind: 'play' }, { store, pub: redis, requestedBy: 'u' });
     expect((await store.getState()).isPaused).toBe(false);
+  });
+
+  it('enqueue：回覆含歌曲編號', async () => {
+    const resolveTitle = jest.fn().mockResolvedValue('稻香');
+    const reply = await applyIntent(
+      { kind: 'enqueue', videoId: 'dQw4w9WgXcQ' },
+      { store, pub: redis, requestedBy: 'oscar', resolveTitle }
+    );
+    // store 配發第一個編號 1000
+    expect(reply).toContain('編號 1000');
+  });
+
+  it('list：回覆含播放中與待播清單、正確截斷至 10 首', async () => {
+    const resolveTitle = jest.fn().mockResolvedValue(null);
+    // 1 首 current + 12 首 items
+    for (let i = 0; i < 13; i++) {
+      await applyIntent(
+        { kind: 'enqueue', videoId: `vid${i}______` },
+        { store, pub: redis, requestedBy: `u${i}`, resolveTitle }
+      );
+    }
+    const reply = await applyIntent(
+      { kind: 'list' },
+      { store, pub: redis, requestedBy: 'u' }
+    );
+    expect(reply).toContain('播放中');
+    expect(reply).toContain('接下來 10 首');
+    // 第 10 列存在、第 11 列不存在
+    expect(reply).toContain('10. 編號');
+    expect(reply).not.toContain('11. 編號');
+  });
+
+  it('list：空佇列回友善訊息', async () => {
+    const reply = await applyIntent(
+      { kind: 'list' },
+      { store, pub: redis, requestedBy: 'u' }
+    );
+    expect(reply).toContain('待播清單是空的');
+  });
+
+  it('move_front：呼叫 store 並 publish 事件、回覆正確', async () => {
+    const resolveTitle = jest.fn().mockResolvedValue(null);
+    await applyIntent(
+      { kind: 'enqueue', videoId: 'aaaaaaaaaaa' },
+      { store, pub: redis, requestedBy: 'u1', resolveTitle }
+    ); // current, 1000
+    await applyIntent(
+      { kind: 'enqueue', videoId: 'bbbbbbbbbbb' },
+      { store, pub: redis, requestedBy: 'u2', resolveTitle }
+    ); // items[0], 1001
+    await applyIntent(
+      { kind: 'enqueue', videoId: 'ccccccccccc' },
+      { store, pub: redis, requestedBy: 'u3', resolveTitle }
+    ); // items[1], 1002
+    published.length = 0;
+
+    const reply = await applyIntent(
+      { kind: 'move_front', songNumber: 1002 },
+      { store, pub: redis, requestedBy: 'u' }
+    );
+    expect(reply).toContain('編號 1002');
+
+    const state = await store.getState();
+    expect(state.items.map((s) => s.songNumber)).toEqual([1002, 1001]);
+
+    const types = published.map((e) => (e as { type: string }).type);
+    expect(types).toEqual([
+      KtvEventType.QueueMoveToFront,
+      KtvEventType.QueueUpdated,
+    ]);
+  });
+
+  it('move_front：找不到編號時回提示、不 publish', async () => {
+    const resolveTitle = jest.fn().mockResolvedValue(null);
+    await applyIntent(
+      { kind: 'enqueue', videoId: 'aaaaaaaaaaa' },
+      { store, pub: redis, requestedBy: 'u1', resolveTitle }
+    );
+    published.length = 0;
+
+    const reply = await applyIntent(
+      { kind: 'move_front', songNumber: 9998 },
+      { store, pub: redis, requestedBy: 'u' }
+    );
+    expect(reply).toContain('找不到編號 9998');
+    expect(published).toHaveLength(0);
+  });
+
+  describe('formatQueueList（純函式）', () => {
+    it('空佇列回友善訊息', () => {
+      const text = formatQueueList({
+        items: [],
+        current: null,
+        isPaused: false,
+      });
+      expect(text).toContain('待播清單是空的');
+    });
+  });
+
+  it('danmaku：publish Danmaku 事件（payload 為「暱稱：訊息」）且回傳 null', async () => {
+    const reply = await applyIntent(
+      { kind: 'danmaku', text: '今天天氣真好' },
+      { store, pub: redis, requestedBy: 'oscar' }
+    );
+    expect(reply).toBeNull();
+
+    expect(published).toHaveLength(1);
+    const event = published[0] as { type: string; payload: { text: string } };
+    expect(event.type).toBe(KtvEventType.Danmaku);
+    expect(event.payload.text).toBe('oscar：今天天氣真好');
   });
 
   it('ignore：不動作、回傳 null', async () => {

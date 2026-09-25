@@ -122,11 +122,13 @@ docker run --rm -p 3333:3333 -e DISCORD_TOKEN=xxx discord-ktv
 ## Redis / 事件協定速查
 
 - Key：
-  - `ktv:queue:state`（String，序列化的 `QueueState`）
+  - `ktv:queue:state`（String，序列化的 `QueueState`；每首 `Song` 帶 4 位編號 `songNumber`）
+  - `ktv:queue:counter`（String，歌曲編號計數器；`INCR` 映射到 1000~9999 循環，由 `KtvStore.nextSongNumber` 使用）
   - `ktv:config:discord`（String，序列化的 `DiscordConfig`＝`{ token, channelId }`；經 `ConfigStore` 讀寫）
 - Channel：`ktv:events`（序列化的 `KtvEvent`）
-- 事件型別：`QueueUpdated` / `Skip` / `Pause` / `Play` / `ConfigUpdated`（見 `libs/shared-types`）
-- api 介面：`GET /config/discord`（遮罩狀態，不回明文 token）、`PUT /config/discord`（更新後 publish `ConfigUpdated`）
+- 事件型別：`QueueUpdated` / `Skip` / `Pause` / `Play` / `QueueMoveToFront` / `QueueReorder` / `ConfigUpdated`（見 `libs/shared-types`）
+- api 介面：`GET /config/discord`（遮罩狀態，不回明文 token）、`PUT /config/discord`（更新後 publish `ConfigUpdated`）、`POST /control/move-front`、`POST /control/reorder`（僅 publish 事件）
+- Discord 指令：`list`/`清單` 列出下 10 首（含編號）、`插歌 <4 位編號>` 把該歌插到最前面
 - 詳見 `specs/redis-schema.md`、`specs/events.md`、`specs/api.md`
 
 ## 給 AI agent 的提醒

@@ -2,6 +2,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { ThemeProvider } from './theme/ThemeContext';
 import { YouTubeApiProvider } from './youtube/YouTubeApiContext';
+import { DanmakuProvider } from './danmaku/DanmakuContext';
 import App from './App';
 import './styles.scss';
 
@@ -14,7 +15,9 @@ createRoot(container).render(
   <StrictMode>
     <ThemeProvider>
       <YouTubeApiProvider>
-        <App />
+        <DanmakuProvider>
+          <App />
+        </DanmakuProvider>
       </YouTubeApiProvider>
     </ThemeProvider>
   </StrictMode>,

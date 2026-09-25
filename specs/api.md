@@ -5,19 +5,28 @@
 
 ## REST
 
-| Method | Path              | 說明                                   | 回應                                                   |
-| ------ | ----------------- | -------------------------------------- | ------------------------------------------------------ |
-| GET    | `/health`         | 健康檢查                               | `{ "status": "ok" }`                                   |
-| GET    | `/queue`          | 取得目前佇列狀態                       | `QueueState`                                           |
-| POST   | `/control/skip`   | 跳過目前歌曲                           | `{ "ok": true }`                                       |
-| POST   | `/control/pause`  | 暫停                                   | `{ "ok": true }`                                       |
-| POST   | `/control/play`   | 繼續                                   | `{ "ok": true }`                                       |
-| POST   | `/playback/ended` | 大螢幕播完一首，推進下一首             | `{ "ok": true }`                                       |
-| GET    | `/config/discord` | 取得 Discord 設定的遮罩狀態            | `{ "hasToken": boolean, "channelId": string \| null }` |
-| PUT    | `/config/discord` | 更新 Discord 設定（token / channelId） | `{ "hasToken": boolean, "channelId": string \| null }` |
+| Method | Path                  | 說明                                                           | 回應                                                   |
+| ------ | --------------------- | -------------------------------------------------------------- | ------------------------------------------------------ |
+| GET    | `/health`             | 健康檢查                                                       | `{ "status": "ok" }`                                   |
+| GET    | `/queue`              | 取得目前佇列狀態                                               | `QueueState`                                           |
+| POST   | `/control/skip`       | 跳過目前歌曲                                                   | `{ "ok": true }`                                       |
+| POST   | `/control/pause`      | 暫停                                                           | `{ "ok": true }`                                       |
+| POST   | `/control/play`       | 繼續                                                           | `{ "ok": true }`                                       |
+| POST   | `/control/move-front` | 把指定編號的歌插到最前面（body: `{ songNumber: number }`）     | `{ "ok": true }` / `400`                               |
+| POST   | `/control/reorder`    | 依完整 id 順序重排待播清單（body: `{ orderedIds: string[] }`） | `{ "ok": true }` / `400`                               |
+| POST   | `/playback/ended`     | 大螢幕播完一首，推進下一首                                     | `{ "ok": true }`                                       |
+| GET    | `/config/discord`     | 取得 Discord 設定的遮罩狀態                                    | `{ "hasToken": boolean, "channelId": string \| null }` |
+| PUT    | `/config/discord`     | 更新 Discord 設定（token / channelId）                         | `{ "hasToken": boolean, "channelId": string \| null }` |
 
 控制端點只負責「發布事件」到 Redis；實際佇列變動由 `api` 的訂閱端統一處理（見
 [events.md](./events.md)），維持單一資料流方向。
+
+### 插歌 / 重排端點
+
+- `POST /control/move-front` body：`{ songNumber: number }`（須為整數，否則回 `400`）。
+  發布 `QueueMoveToFront` 事件，訂閱端套用 `store.moveToFront` 後廣播最新 `QueueState`。
+- `POST /control/reorder` body：`{ orderedIds: string[] }`（須為字串陣列，否則回 `400`）。
+  發布 `QueueReorder` 事件，訂閱端套用 `store.reorder` 後廣播最新 `QueueState`。
 
 ### `/config/discord` 說明
 
@@ -34,6 +43,15 @@
 curl http://localhost:3333/queue
 curl -X POST http://localhost:3333/control/skip
 curl -X POST http://localhost:3333/playback/ended
+
+# 把編號 1234 的歌插到最前面
+curl -X POST http://localhost:3333/control/move-front \
+  -H 'Content-Type: application/json' \
+  -d '{"songNumber":1234}'
+# 依 id 順序重排待播清單
+curl -X POST http://localhost:3333/control/reorder \
+  -H 'Content-Type: application/json' \
+  -d '{"orderedIds":["id-c","id-a","id-b"]}'
 
 # 讀取 Discord 設定遮罩狀態
 curl http://localhost:3333/config/discord

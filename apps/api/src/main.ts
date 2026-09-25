@@ -115,8 +115,18 @@ export async function handleEvent(
     case KtvEventType.Play:
       await store.setPaused(false);
       break;
+    case KtvEventType.QueueMoveToFront:
+      await store.moveToFront(event.payload.songNumber);
+      break;
+    case KtvEventType.QueueReorder:
+      await store.reorder(event.payload.orderedIds);
+      break;
     case KtvEventType.QueueUpdated:
       // bot enqueue 後已帶最新狀態，直接廣播即可（不需再改 store）
+      hub.broadcast({ type: event.type, payload: event.payload });
+      return;
+    case KtvEventType.Danmaku:
+      // 彈幕為一次性通知，直接轉發廣播給前端，不碰佇列 store
       hub.broadcast({ type: event.type, payload: event.payload });
       return;
     default:

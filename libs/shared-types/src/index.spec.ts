@@ -3,6 +3,7 @@ import {
   emptyDiscordConfig,
   emptyQueueState,
   KtvEventType,
+  type KtvEvent,
   type Song,
 } from './index';
 
@@ -28,6 +29,16 @@ describe('shared-types', () => {
       expect(song.id).toBe('fixed-id');
     });
 
+    it('未提供 songNumber 時預設為 0（尚未配號）', () => {
+      const song = createSong('v', 'u');
+      expect(song.songNumber).toBe(0);
+    });
+
+    it('可透過 overrides 帶入 songNumber', () => {
+      const song = createSong('v', 'u', { songNumber: 1234 });
+      expect(song.songNumber).toBe(1234);
+    });
+
     it('產生的 id 應唯一', () => {
       const a = createSong('v1', 'u');
       const b = createSong('v2', 'u');
@@ -50,7 +61,24 @@ describe('shared-types', () => {
       expect(KtvEventType.Skip).toBe('skip');
       expect(KtvEventType.Pause).toBe('pause');
       expect(KtvEventType.Play).toBe('play');
+      expect(KtvEventType.QueueMoveToFront).toBe('queue_move_to_front');
+      expect(KtvEventType.QueueReorder).toBe('queue_reorder');
       expect(KtvEventType.ConfigUpdated).toBe('config_updated');
+      expect(KtvEventType.Danmaku).toBe('danmaku');
+    });
+  });
+
+  describe('Danmaku 事件', () => {
+    it('可被序列化/反序列化為預期形狀', () => {
+      const event: KtvEvent = {
+        type: KtvEventType.Danmaku,
+        payload: { text: 'oscar：今天天氣真好' },
+      };
+      const roundTrip = JSON.parse(JSON.stringify(event)) as KtvEvent;
+      expect(roundTrip.type).toBe(KtvEventType.Danmaku);
+      expect((roundTrip.payload as { text: string }).text).toBe(
+        'oscar：今天天氣真好'
+      );
     });
   });
 
