@@ -8,6 +8,7 @@ import {
   type ServerMessage,
 } from '@discord-ktv/shared-types';
 import {
+  ConfigStore,
   createRedis,
   KtvStore,
   publishEvent,
@@ -33,6 +34,7 @@ async function main(): Promise<void> {
   // 訂閱連線（進入 subscribe 模式後不可再下一般命令，需獨立）
   const subRedis = createRedis();
   const store = new KtvStore(redis);
+  const configStore = new ConfigStore(redis);
   const hub = new WebSocketHub();
 
   // all-in-one image 會把 web 產物放在此目錄；存在才啟用 static
@@ -41,6 +43,7 @@ async function main(): Promise<void> {
 
   const app = createApp({
     store,
+    configStore,
     publish: (event: KtvEvent) => publishEvent(redis, event),
     webStaticDir: serveStatic ? webStaticDir : undefined,
   });

@@ -11,8 +11,12 @@ name: discord-ktv-dev
 services:
   redis:
     image: redis:7-alpine
+    # 開啟 AOF 持久化，讓 Discord 設定 (ktv:config:discord) 跨重啟保存
+    command: redis-server --appendonly yes --dir /data
     ports:
       - '6379:6379'
+    volumes:
+      - redis_data:/data
     healthcheck:
       test: ['CMD', 'redis-cli', 'ping']
       interval: 5s
@@ -78,3 +82,4 @@ volumes:
   bot_node_modules:
   api_node_modules:
   web_node_modules:
+  redis_data:

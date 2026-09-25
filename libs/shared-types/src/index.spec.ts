@@ -1,5 +1,6 @@
 import {
   createSong,
+  emptyDiscordConfig,
   emptyQueueState,
   KtvEventType,
   type Song,
@@ -44,11 +45,18 @@ describe('shared-types', () => {
   });
 
   describe('KtvEventType', () => {
-    it('定義四種事件', () => {
+    it('定義既有事件與 ConfigUpdated', () => {
       expect(KtvEventType.QueueUpdated).toBe('queue_updated');
       expect(KtvEventType.Skip).toBe('skip');
       expect(KtvEventType.Pause).toBe('pause');
       expect(KtvEventType.Play).toBe('play');
+      expect(KtvEventType.ConfigUpdated).toBe('config_updated');
+    });
+  });
+
+  describe('emptyDiscordConfig', () => {
+    it('回傳 token 與 channelId 皆為 null', () => {
+      expect(emptyDiscordConfig()).toEqual({ token: null, channelId: null });
     });
   });
 

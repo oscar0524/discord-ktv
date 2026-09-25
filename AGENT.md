@@ -71,9 +71,11 @@ docker run --rm -p 3333:3333 -e DISCORD_TOKEN=xxx discord-ktv
 ## 專案慣例（新增 app/lib 時遵循）
 
 ### Path alias
+
 跨專案 import 一律用 `@discord-ktv/<name>`（定義於 `tsconfig.base.json` 的 `paths`，指向各 lib 的 `src/index.ts`）。
 
 ### 每個專案的檔案樣板
+
 - `package.json`：lib 設 `"main"`/`"types"` 指向 `./src/index.ts`。
 - `project.json`：定義 `build` / `serve` / `typecheck` / `test` targets，用 `nx:run-commands` executor。
   - ⚠️ **不要**加 `"$schema": "...node_modules/nx/schemas/..."`，指向可遠端解析的 schema 會被工具擋下。
@@ -82,12 +84,14 @@ docker run --rm -p 3333:3333 -e DISCORD_TOKEN=xxx discord-ktv
 - `jest.config.ts`：`preset: '../../jest.preset.js'`（web 因 jsdom + import.meta 需求另做自訂設定）。
 
 ### 建置方式
+
 - **node app（api / discord-bot）**：`build` 用 `nx:run-commands` 跑 `esbuild ... --bundle --tsconfig=... --outfile=dist/apps/<app>/main.js`。esbuild 靠 `--tsconfig` 自動解析 path alias。**未安裝 `@nx/esbuild` plugin**，直接用 esbuild CLI（已列為 devDep）。
 - **web**：`vite build`，輸出到 `dist/apps/web`。
 - **lib**：`build` 用 `tsc -p .../tsconfig.json`（`^build` 依賴會先建 libs）。
 - `serve`（node app）：`node -r ts-node/register -r tsconfig-paths/register .../main.ts`（`tsconfig-paths` 於 runtime 解析 alias）。
 
 ### 測試慣例
+
 - 邏輯與副作用分離：把純函式（如 `parseMessage`）與可注入依賴的執行器（如 `applyIntent`、`handleEvent`）抽出來測，不依賴真實 Discord/網路。
 - Redis 測試用 `ioredis-mock`：
   - ⚠️ 不同 `new RedisMock()` 實例**共享同一份記憶體資料集**，測試間需 `beforeEach` 呼叫 `flushall` 清空。
@@ -108,13 +112,21 @@ docker run --rm -p 3333:3333 -e DISCORD_TOKEN=xxx discord-ktv
 
 ## 環境變數
 
-見 `.env.example`。關鍵：`DISCORD_TOKEN`（必填）、`REDIS_URL`、`API_PORT`、`VITE_API_URL`/`VITE_WS_URL`。
+見 `.env.example`。關鍵：`DISCORD_TOKEN`、`REDIS_URL`、`API_PORT`、`VITE_API_URL`/`VITE_WS_URL`。
+
+`DISCORD_TOKEN` / `DISCORD_KTV_CHANNEL_ID` 現為**初始種子**：bot 以 Redis（`ktv:config:discord`）
+為單一事實來源，啟動時若 Redis 尚無 token 但 env 有值，會把 env 寫入 Redis 當初始值。
+之後可於網頁（右側欄「Discord 設定」）變更，bot 在同一 process 熱重連（不需重啟）。
+缺 token 時 bot 待命不結束，等待網頁設定後自動連線。
 
 ## Redis / 事件協定速查
 
-- Key：`ktv:queue:state`（String，序列化的 `QueueState`）
+- Key：
+  - `ktv:queue:state`（String，序列化的 `QueueState`）
+  - `ktv:config:discord`（String，序列化的 `DiscordConfig`＝`{ token, channelId }`；經 `ConfigStore` 讀寫）
 - Channel：`ktv:events`（序列化的 `KtvEvent`）
-- 事件型別：`QueueUpdated` / `Skip` / `Pause` / `Play`（見 `libs/shared-types`）
+- 事件型別：`QueueUpdated` / `Skip` / `Pause` / `Play` / `ConfigUpdated`（見 `libs/shared-types`）
+- api 介面：`GET /config/discord`（遮罩狀態，不回明文 token）、`PUT /config/discord`（更新後 publish `ConfigUpdated`）
 - 詳見 `specs/redis-schema.md`、`specs/events.md`、`specs/api.md`
 
 ## 給 AI agent 的提醒

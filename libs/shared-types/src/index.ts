@@ -31,6 +31,19 @@ export interface QueueState {
 }
 
 /**
+ * Discord bot 的執行期設定（可於網頁設定、持久化於 Redis、bot 熱重連套用）。
+ *
+ * 安全備註：token 為機密。此型別用於 Redis 內部儲存；對外（GET）的回傳一律遮罩，
+ * 只透露 hasToken 與 channelId，不回傳明文 token。
+ */
+export interface DiscordConfig {
+  /** Discord bot token；null 表示尚未設定（bot 進入待命） */
+  token: string | null;
+  /** 限定監聽的頻道 id（純數字字串）；null 表示不限制頻道 */
+  channelId: string | null;
+}
+
+/**
  * Redis Pub/Sub 事件類型。
  * discord-bot 與 api 的控制端點會 publish 這些事件，api 訂閱後轉成 WebSocket 訊息推給前端。
  */
@@ -43,6 +56,12 @@ export enum KtvEventType {
   Pause = 'pause',
   /** 繼續播放 */
   Play = 'play',
+  /**
+   * Discord 設定已更新。
+   * 安全設計：payload 不帶明文 token，訂閱端（bot）收到後自行從 Redis 重讀最新 config，
+   * 避免機密流經 Pub/Sub 頻道。
+   */
+  ConfigUpdated = 'config_updated',
 }
 
 /** 事件的資料負載對應表 */
@@ -51,6 +70,7 @@ export interface KtvEventPayloadMap {
   [KtvEventType.Skip]: { reason?: string };
   [KtvEventType.Pause]: Record<string, never>;
   [KtvEventType.Play]: Record<string, never>;
+  [KtvEventType.ConfigUpdated]: Record<string, never>;
 }
 
 /** 一個帶型別的事件（發布/訂閱時流通的形狀） */
@@ -58,7 +78,8 @@ export type KtvEvent =
   | { type: KtvEventType.QueueUpdated; payload: QueueState }
   | { type: KtvEventType.Skip; payload: { reason?: string } }
   | { type: KtvEventType.Pause; payload: Record<string, never> }
-  | { type: KtvEventType.Play; payload: Record<string, never> };
+  | { type: KtvEventType.Play; payload: Record<string, never> }
+  | { type: KtvEventType.ConfigUpdated; payload: Record<string, never> };
 
 /** WebSocket server → client 推播的訊息（目前與 KtvEvent 同構，另留版本欄位供演進） */
 export interface ServerMessage {
@@ -93,4 +114,9 @@ export function createSong(
 /** 空佇列狀態，供初始化使用 */
 export function emptyQueueState(): QueueState {
   return { items: [], current: null, isPaused: false };
+}
+
+/** 空的 Discord 設定（尚未設定 token 與頻道），供初始化與壞資料 fallback 使用 */
+export function emptyDiscordConfig(): DiscordConfig {
+  return { token: null, channelId: null };
 }

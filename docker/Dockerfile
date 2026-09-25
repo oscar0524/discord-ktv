@@ -13,6 +13,11 @@
 #
 # 也可用 --env-file 一次帶入：
 #   docker run --rm -p 3333:3333 --env-file .env discord-ktv
+#
+# DISCORD_TOKEN / DISCORD_KTV_CHANNEL_ID 現為「初始種子」：首次啟動時若 Redis 尚無設定，
+# bot 會把 env 值寫入 Redis 當初始值；之後可於網頁 (右側欄「Discord 設定」) 變更並熱重連。
+# 設定持久化於 Redis /data（AOF）。掛具名 volume 即可跨重開機保存：
+#   docker run --rm -p 3333:3333 -v ktv_redis:/data --env-file .env discord-ktv
 
 # ---------- Stage 1: build ----------
 FROM node:20-bookworm-slim AS build
@@ -59,6 +64,11 @@ ENV NODE_ENV=production \
     API_PORT=3333 \
     DISCORD_TOKEN="" \
     DISCORD_KTV_CHANNEL_ID=""
+
+# Redis 資料目錄（AOF 持久化）。宣告為 VOLUME，讓 Discord 設定 (ktv:config:discord)
+# 可跨容器重啟/重建保存。掛具名 volume：docker run -v ktv_redis:/data ...
+RUN mkdir -p /data
+VOLUME ["/data"]
 
 EXPOSE 3333
 

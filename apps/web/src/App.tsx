@@ -10,10 +10,12 @@ import {
 } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
+import SettingsIcon from '@mui/icons-material/Settings';
 import { ThemeToggle } from './components/ThemeToggle';
 import { Player } from './components/Player';
 import { Controls } from './components/Controls';
 import { QueueList } from './components/QueueList';
+import { SettingsDialog } from './components/SettingsDialog';
 import { useQueue } from './api/useQueue';
 
 const SIDEBAR_WIDTH = 340;
@@ -24,6 +26,7 @@ export function App() {
   const { state, connected } = useQueue();
   // 側欄預設折起來
   const [open, setOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const sidebarWidth = open ? SIDEBAR_WIDTH : SIDEBAR_COLLAPSED_WIDTH;
 
@@ -100,9 +103,20 @@ export function App() {
             </IconButton>
           </Tooltip>
           {open && (
-            <Typography variant="h6" className="flex-1 whitespace-nowrap">
-              🎤 Discord KTV
-            </Typography>
+            <>
+              <Typography variant="h6" className="flex-1 whitespace-nowrap">
+                🎤 Discord KTV
+              </Typography>
+              <Tooltip title="Discord 設定">
+                <IconButton
+                  onClick={() => setSettingsOpen(true)}
+                  aria-label="Discord 設定"
+                  data-testid="btn-open-settings"
+                >
+                  <SettingsIcon />
+                </IconButton>
+              </Tooltip>
+            </>
           )}
         </Box>
 
@@ -130,6 +144,11 @@ export function App() {
           </Box>
         )}
       </Drawer>
+
+      <SettingsDialog
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+      />
     </Box>
   );
 }

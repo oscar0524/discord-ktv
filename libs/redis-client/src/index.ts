@@ -6,5 +6,6 @@
  */
 export { createRedis, type Redis } from './connection';
 export { KtvStore } from './store';
+export { ConfigStore } from './store-config';
 export { publishEvent, subscribeEvent } from './pubsub';
-export { KEY_QUEUE_STATE, CHANNEL_EVENTS } from './keys';
+export { KEY_QUEUE_STATE, CHANNEL_EVENTS, KEY_DISCORD_CONFIG } from './keys';

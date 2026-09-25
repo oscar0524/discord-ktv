@@ -6,12 +6,13 @@
 
 事件形狀為 `KtvEvent`：`{ type, payload }`。
 
-| `type` (`KtvEventType`) | 值 | 發布者 | payload | 語意 |
-| --- | --- | --- | --- | --- |
-| `QueueUpdated` | `queue_updated` | discord-bot（enqueue 後） | `QueueState` | 佇列內容已變動，帶最新完整狀態。 |
-| `Skip` | `skip` | discord-bot / api 控制端點 | `{ reason?: string }` | 跳過目前歌曲（`reason: "ended"` 表示播完自動跳）。 |
-| `Pause` | `pause` | discord-bot / api 控制端點 | `{}` | 暫停播放。 |
-| `Play` | `play` | discord-bot / api 控制端點 | `{}` | 繼續播放。 |
+| `type` (`KtvEventType`) | 值               | 發布者                       | payload               | 語意                                                                                                   |
+| ----------------------- | ---------------- | ---------------------------- | --------------------- | ------------------------------------------------------------------------------------------------------ |
+| `QueueUpdated`          | `queue_updated`  | discord-bot（enqueue 後）    | `QueueState`          | 佇列內容已變動，帶最新完整狀態。                                                                       |
+| `Skip`                  | `skip`           | discord-bot / api 控制端點   | `{ reason?: string }` | 跳過目前歌曲（`reason: "ended"` 表示播完自動跳）。                                                     |
+| `Pause`                 | `pause`          | discord-bot / api 控制端點   | `{}`                  | 暫停播放。                                                                                             |
+| `Play`                  | `play`           | discord-bot / api 控制端點   | `{}`                  | 繼續播放。                                                                                             |
+| `ConfigUpdated`         | `config_updated` | api（`PUT /config/discord`） | `{}`                  | Discord 設定已更新；**payload 不帶明文 token**，訂閱端（bot）收到後自行從 Redis 重讀最新設定並熱重連。 |
 
 ### 事件如何被套用
 
@@ -21,8 +22,9 @@
 - `Pause` → `KtvStore.setPaused(true)`
 - `Play` → `KtvStore.setPaused(false)`
 - `QueueUpdated` → 不改狀態，直接把事件帶的 `QueueState` 廣播
+- `ConfigUpdated` → api 不處理（與佇列無關）；由 `discord-bot` 訂閱，收到後重讀 `ktv:config:discord` 並 `BotConnection.applyConfig()` 熱重連。
 
-套用後（除 `QueueUpdated` 外），`api` 會讀取最新狀態並廣播一則 `QueueUpdated`。
+套用後（除 `QueueUpdated` 與 `ConfigUpdated` 外），`api` 會讀取最新狀態並廣播一則 `QueueUpdated`。
 
 ## WebSocket 訊息（server → client）
 
