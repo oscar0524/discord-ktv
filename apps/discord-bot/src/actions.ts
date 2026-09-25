@@ -7,7 +7,16 @@ import {
 } from '@discord-ktv/shared-types';
 import { KtvStore, publishEvent, type Redis } from '@discord-ktv/redis-client';
 import { fetchVideoTitle } from '@discord-ktv/youtube-utils';
-import type { MessageIntent } from './message-handler';
+import {
+  COMMAND_PREFIXES,
+  HELP_WORDS,
+  LIST_WORDS,
+  MOVE_FRONT_WORDS,
+  PAUSE_WORDS,
+  PLAY_WORDS,
+  SKIP_WORDS,
+  type MessageIntent,
+} from './message-handler';
 
 /** 顯示一首歌用的名稱：優先歌名，否則以 videoId 表示 */
 function songLabel(song: Song): string {
@@ -37,6 +46,41 @@ export function formatQueueList(state: QueueState, limit = 10): string {
     );
   });
   return lines.join('\n');
+}
+
+/** 主前綴（用於說明示範，取第一個支援的前綴）。 */
+const PRIMARY_PREFIX = COMMAND_PREFIXES[0];
+
+/**
+ * 把關鍵字陣列格式化為帶前綴的說明用顯示字串（例：`!跳過 / !skip`）。
+ * 依新規則所有控制指令都需帶前綴，故顯示時逐一補上主前綴。
+ */
+function joinWords(words: string[]): string {
+  return words.map((w) => `${PRIMARY_PREFIX}${w}`).join(' / ');
+}
+
+/**
+ * 純函式：產生一份涵蓋所有指令的說明文字（含 emoji），
+ * 風格與 formatQueueList 一致。關鍵字直接引用 message-handler 的常數，
+ * 避免硬編兩份而失去同步。
+ */
+export function formatHelp(): string {
+  const prefixes = COMMAND_PREFIXES.join(' 或 ');
+  return [
+    '🎤 Discord KTV 使用說明',
+    '',
+    `📌 控制指令需以 ${prefixes} 開頭才生效（點歌免前綴）。`,
+    '',
+    `🎵 點歌：直接貼上 YouTube 連結（例：https://youtu.be/dQw4w9WgXcQ）`,
+    `⏭️ 跳過：${joinWords(SKIP_WORDS)}`,
+    `⏸️ 暫停：${joinWords(PAUSE_WORDS)}`,
+    `▶️ 繼續：${joinWords(PLAY_WORDS)}`,
+    `📋 清單：${joinWords(LIST_WORDS)}`,
+    `⏫ 插歌：${joinWords(MOVE_FRONT_WORDS)} <4位編號>（例：${PRIMARY_PREFIX}front 1234）`,
+    `❓ 說明：${joinWords(HELP_WORDS)}`,
+    '',
+    '💬 其他任何文字都會變成彈幕，飄過大螢幕。',
+  ].join('\n');
 }
 
 /**
@@ -171,6 +215,9 @@ export async function applyIntent(
       });
       return null;
     }
+
+    case 'help':
+      return formatHelp();
 
     case 'ignore':
     default:

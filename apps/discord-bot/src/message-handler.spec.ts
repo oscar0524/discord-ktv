@@ -15,46 +15,87 @@ describe('parseMessage', () => {
     expect(intent).toEqual({ kind: 'enqueue', videoId: 'dQw4w9WgXcQ' });
   });
 
+  // 帶前綴才生效的控制指令（skip / pause / play）
   it.each([
-    ['跳過', 'skip'],
-    ['skip', 'skip'],
     ['!skip', 'skip'],
-    ['下一首', 'skip'],
-    ['暫停', 'pause'],
+    ['/skip', 'skip'],
+    ['!跳過', 'skip'],
+    ['!下一首', 'skip'],
+    ['/next', 'skip'],
+    ['!暫停', 'pause'],
     ['!pause', 'pause'],
-    ['繼續', 'play'],
-    ['play', 'play'],
-  ])('指令 %s → %s', (content, kind) => {
+    ['/pause', 'pause'],
+    ['!繼續', 'play'],
+    ['!play', 'play'],
+    ['/resume', 'play'],
+  ])('帶前綴指令 %s → %s', (content, kind) => {
     expect(parseMessage(content).kind).toBe(kind);
   });
 
   it.each([
-    ['清單', 'list'],
-    ['列表', 'list'],
-    ['list', 'list'],
+    ['!清單', 'list'],
+    ['!列表', 'list'],
     ['!list', 'list'],
     ['/queue', 'list'],
-  ])('指令 %s → %s', (content, kind) => {
+  ])('帶前綴指令 %s → %s', (content, kind) => {
     expect(parseMessage(content).kind).toBe(kind);
   });
 
   it.each([
-    ['插歌 1234', 1234],
-    ['插播 5678', 5678],
+    ['!說明', 'help'],
+    ['!幫助', 'help'],
+    ['!help', 'help'],
+    ['/help', 'help'],
+    ['!HELP', 'help'],
+  ])('帶前綴說明指令 %s → %s', (content, kind) => {
+    expect(parseMessage(content).kind).toBe(kind);
+  });
+
+  // 未帶前綴的指令文字 → 一律當彈幕飄過大螢幕
+  it.each([
+    ['跳過'],
+    ['skip'],
+    ['下一首'],
+    ['暫停'],
+    ['pause'],
+    ['繼續'],
+    ['play'],
+    ['清單'],
+    ['列表'],
+    ['list'],
+    ['說明'],
+    ['幫助'],
+    ['help'],
+    ['?'], // ? 不屬於 ! / / 前綴，依新規則變成彈幕
+  ])('無前綴指令文字 %s → danmaku', (content) => {
+    expect(parseMessage(content)).toEqual({ kind: 'danmaku', text: content });
+  });
+
+  // 帶前綴插歌才生效
+  it.each([
+    ['!插歌 1234', 1234],
+    ['!插播 5678', 5678],
     ['!front 1000', 1000],
     ['/top 9999', 9999],
-    ['FRONT 4321', 4321],
-  ])('插歌指令 %s → move_front', (content, songNumber) => {
+    ['!FRONT 4321', 4321],
+  ])('帶前綴插歌指令 %s → move_front', (content, songNumber) => {
     expect(parseMessage(content)).toEqual({ kind: 'move_front', songNumber });
   });
 
+  it('無前綴插歌 → danmaku', () => {
+    expect(parseMessage('插歌 1234')).toEqual({
+      kind: 'danmaku',
+      text: '插歌 1234',
+    });
+  });
+
   it.each([
-    ['插歌 123'], // 非 4 位
-    ['插歌 12345'], // 5 位
-    ['插歌 abcd'], // 非數字
-    ['插歌'], // 缺參數
-    ['插歌 1234 5678'], // 多餘參數
-  ])('非法插歌指令 %s → danmaku（非任何命令即彈幕）', (content) => {
+    ['!插歌 123'], // 非 4 位
+    ['!插歌 12345'], // 5 位
+    ['!插歌 abcd'], // 非數字
+    ['!插歌'], // 缺參數
+    ['!插歌 1234 5678'], // 多餘參數
+  ])('帶前綴但非法插歌指令 %s → danmaku（非任何命令即彈幕）', (content) => {
     const intent = parseMessage(content);
     expect(intent).toEqual({ kind: 'danmaku', text: content });
   });
@@ -86,7 +127,7 @@ describe('parseMessage', () => {
   });
 
   it('連結優先於指令關鍵字', () => {
-    const intent = parseMessage('skip https://youtu.be/dQw4w9WgXcQ');
+    const intent = parseMessage('!skip https://youtu.be/dQw4w9WgXcQ');
     expect(intent).toEqual({ kind: 'enqueue', videoId: 'dQw4w9WgXcQ' });
   });
 });

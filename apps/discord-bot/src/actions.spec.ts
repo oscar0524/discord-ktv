@@ -1,7 +1,7 @@
 import RedisMock from 'ioredis-mock';
 import { KtvStore, type Redis } from '@discord-ktv/redis-client';
 import { KtvEventType } from '@discord-ktv/shared-types';
-import { applyIntent, formatQueueList } from './actions';
+import { applyIntent, formatHelp, formatQueueList } from './actions';
 
 describe('applyIntent', () => {
   let redis: Redis;
@@ -180,6 +180,37 @@ describe('applyIntent', () => {
     );
     expect(reply).toContain('找不到編號 9998');
     expect(published).toHaveLength(0);
+  });
+
+  it('help：回傳說明文字且不 publish 任何事件', async () => {
+    const reply = await applyIntent(
+      { kind: 'help' },
+      { store, pub: redis, requestedBy: 'oscar' }
+    );
+    expect(reply).not.toBeNull();
+    expect(reply).toContain('插歌');
+    expect(reply).toContain('說明');
+    expect(published).toHaveLength(0);
+  });
+
+  describe('formatHelp（純函式）', () => {
+    it('涵蓋所有指令關鍵字與行為說明', () => {
+      const text = formatHelp();
+      expect(text).toContain('插歌');
+      expect(text).toContain('skip');
+      expect(text).toContain('YouTube');
+      expect(text).toContain('彈幕');
+    });
+
+    it('顯示「指令需帶前綴」提示與帶前綴的指令範例', () => {
+      const text = formatHelp();
+      // 前綴提示（同時提及 ! 與 /）
+      expect(text).toContain('!');
+      expect(text).toContain('/');
+      expect(text).toContain('開頭');
+      // 至少一個帶前綴的指令範例
+      expect(text).toContain('!skip');
+    });
   });
 
   describe('formatQueueList（純函式）', () => {
