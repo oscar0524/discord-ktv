@@ -41,11 +41,20 @@ async function main(): Promise<void> {
   const webStaticDir = path.resolve(__dirname, '../web');
   const serveStatic = fs.existsSync(webStaticDir);
 
+  // 開發時前端 (:4200) 與 API (:3333) 跨來源，需開放 CORS。
+  // 可用 CORS_ORIGIN 以逗號分隔多個來源覆寫；未設定時預設放行本機前端。
+  // all-in-one 同源部署時可設 CORS_ORIGIN= （空字串）停用。
+  const corsOrigins = (process.env.CORS_ORIGIN ?? 'http://localhost:4200')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+
   const app = createApp({
     store,
     configStore,
     publish: (event: KtvEvent) => publishEvent(redis, event),
     webStaticDir: serveStatic ? webStaticDir : undefined,
+    corsOrigins,
   });
 
   const server = http.createServer(app);

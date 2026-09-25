@@ -14,6 +14,36 @@ export interface AppDeps {
   configStore: ConfigStore;
   /** all-in-one image 中，web 產物所在目錄；提供則掛上 express static */
   webStaticDir?: string;
+  /**
+   * 允許的 CORS 來源清單（開發時前端在 http://localhost:4200，與 API :3333 跨來源）。
+   * 省略或空陣列表示不啟用 CORS（例如 all-in-one 同源部署時不需要）。
+   */
+  corsOrigins?: string[];
+}
+
+/**
+ * 依允許清單建立一個極簡 CORS middleware（不引入額外套件，維持 lockfile 乾淨）。
+ * - 只有當 request 的 Origin 命中清單時，才回對應的 Access-Control-Allow-Origin。
+ * - 預檢請求（OPTIONS）直接回 204。
+ * 前端目前不帶 cookie，故不需要 Access-Control-Allow-Credentials。
+ */
+function corsMiddleware(allowed: string[]) {
+  const allowSet = new Set(allowed);
+  return (req: Request, res: Response, next: () => void): void => {
+    const origin = req.headers.origin;
+    if (typeof origin === 'string' && allowSet.has(origin)) {
+      res.setHeader('Access-Control-Allow-Origin', origin);
+      res.setHeader('Vary', 'Origin');
+      res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+      res.setHeader('Access-Control-Max-Age', '86400');
+    }
+    if (req.method === 'OPTIONS') {
+      res.sendStatus(204);
+      return;
+    }
+    next();
+  };
 }
 
 /** channelId 合法性：null / 空字串（不限制），或純數字字串 */
@@ -38,8 +68,11 @@ function isValidChannelId(value: unknown): value is string | null {
  * - PUT  /config/discord    更新 Discord 設定，寫入 Redis 後 publish ConfigUpdated
  */
 export function createApp(deps: AppDeps): Express {
-  const { store, publish, configStore, webStaticDir } = deps;
+  const { store, publish, configStore, webStaticDir, corsOrigins } = deps;
   const app = express();
+  if (corsOrigins && corsOrigins.length > 0) {
+    app.use(corsMiddleware(corsOrigins));
+  }
   app.use(express.json());
 
   app.get('/health', (_req: Request, res: Response) => {

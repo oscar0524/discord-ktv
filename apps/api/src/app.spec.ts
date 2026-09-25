@@ -8,7 +8,7 @@ import {
 } from '@discord-ktv/shared-types';
 import { createApp } from './app';
 
-function setup() {
+function setup(overrides: { corsOrigins?: string[] } = {}) {
   const redis = new RedisMock() as unknown as Redis;
   const store = new KtvStore(redis);
   const configStore = new ConfigStore(redis);
@@ -19,6 +19,7 @@ function setup() {
     publish: async (event) => {
       published.push(event);
     },
+    ...overrides,
   });
   return { app, store, configStore, published };
 }
@@ -141,6 +142,48 @@ describe('api app', () => {
         .put('/config/discord')
         .send({ token: '   ' });
       expect(res.status).toBe(400);
+    });
+  });
+
+  describe('CORS', () => {
+    const ORIGIN = 'http://localhost:4200';
+
+    it('允許清單內的 Origin 會回對應的 Allow-Origin header', async () => {
+      const { app } = setup({ corsOrigins: [ORIGIN] });
+      const res = await request(app).get('/queue').set('Origin', ORIGIN);
+      expect(res.status).toBe(200);
+      expect(res.headers['access-control-allow-origin']).toBe(ORIGIN);
+      expect(res.headers['vary']).toContain('Origin');
+    });
+
+    it('不在允許清單的 Origin 不會回 Allow-Origin header', async () => {
+      const { app } = setup({ corsOrigins: [ORIGIN] });
+      const res = await request(app)
+        .get('/queue')
+        .set('Origin', 'http://evil.example');
+      expect(res.status).toBe(200);
+      expect(res.headers['access-control-allow-origin']).toBeUndefined();
+    });
+
+    it('OPTIONS 預檢回 204 並帶上 CORS header', async () => {
+      const { app } = setup({ corsOrigins: [ORIGIN] });
+      const res = await request(app)
+        .options('/config/discord')
+        .set('Origin', ORIGIN)
+        .set('Access-Control-Request-Method', 'PUT');
+      expect(res.status).toBe(204);
+      expect(res.headers['access-control-allow-origin']).toBe(ORIGIN);
+      expect(res.headers['access-control-allow-methods']).toContain('PUT');
+      expect(res.headers['access-control-allow-headers']).toContain(
+        'Content-Type'
+      );
+    });
+
+    it('未設定 corsOrigins 時不加任何 CORS header', async () => {
+      const { app } = setup();
+      const res = await request(app).get('/queue').set('Origin', ORIGIN);
+      expect(res.status).toBe(200);
+      expect(res.headers['access-control-allow-origin']).toBeUndefined();
     });
   });
 });
