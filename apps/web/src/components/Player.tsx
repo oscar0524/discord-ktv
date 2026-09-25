@@ -21,7 +21,10 @@ export function Player({
   const YT = useYouTubeApi();
   const hostRef = useRef<HTMLDivElement | null>(null);
   const playerRef = useRef<YT.Player | null>(null);
-  // 以 ref 保存最新的 isPaused，讓 player 建立當下能套用初始暫停狀態，
+  // 播放器控制方法（pauseVideo/playVideo…）在 iframe 就緒（onReady）前並不存在，
+  // 用此 ref 標記是否已就緒，避免未就緒就呼叫而丟出 not a function。
+  const isReadyRef = useRef(false);
+  // 以 ref 保存最新的 isPaused，讓 player 就緒當下能套用初始暫停狀態，
   // 又不需把 isPaused 放進「建立 player」的依賴陣列。
   const isPausedRef = useRef(isPaused);
   isPausedRef.current = isPaused;
@@ -48,6 +51,13 @@ export function Player({
       videoId: current.videoId,
       playerVars: { autoplay: 1 },
       events: {
+        onReady: () => {
+          isReadyRef.current = true;
+          // player 就緒後才可安全呼叫控制方法：若當下已是暫停狀態就套用。
+          if (isPausedRef.current) {
+            player.pauseVideo();
+          }
+        },
         onStateChange: (event) => {
           if (event.data === YT.PlayerState.ENDED) {
             void api.playbackEnded();
@@ -57,12 +67,8 @@ export function Player({
     });
     playerRef.current = player;
 
-    // 若建立當下已是暫停狀態，套用到剛建立的 player。
-    if (isPausedRef.current) {
-      player.pauseVideo();
-    }
-
     return () => {
+      isReadyRef.current = false;
       player.destroy();
       playerRef.current = null;
     };
@@ -75,7 +81,9 @@ export function Player({
   // 獨立於「建立 player」的 effect，避免暫停/繼續時重建播放器導致影片重播。
   useEffect(() => {
     const player = playerRef.current;
-    if (!player) return;
+    // player 尚未就緒時控制方法還不存在，先略過；就緒後由 onReady 依
+    // isPausedRef 套用初始狀態，之後的 isPaused 變動才走這裡。
+    if (!player || !isReadyRef.current) return;
     if (isPaused) {
       player.pauseVideo();
     } else {

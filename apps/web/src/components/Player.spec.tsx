@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import type { Song } from '@discord-ktv/shared-types';
 import { Player } from './Player';
@@ -19,6 +19,9 @@ jest.mock('../api/client', () => ({
 type StateChangeListener = (event: { data: number }) => void;
 
 let stateChangeListener: StateChangeListener | undefined;
+// 保存 onReady：真實 API 的控制方法（pauseVideo…）需在 onReady 後才可用，
+// 測試須手動觸發此回呼以模擬 iframe 就緒。
+let readyListener: (() => void) | undefined;
 const playerMethods = {
   loadVideoById: jest.fn(),
   playVideo: jest.fn(),
@@ -28,6 +31,7 @@ const playerMethods = {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const PlayerCtor = jest.fn(function (this: any, _el: unknown, options: any) {
   stateChangeListener = options?.events?.onStateChange;
+  readyListener = options?.events?.onReady;
   return Object.assign(this, playerMethods);
 });
 
@@ -56,6 +60,7 @@ describe('Player', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     stateChangeListener = undefined;
+    readyListener = undefined;
   });
 
   afterEach(() => {
@@ -107,8 +112,13 @@ describe('Player', () => {
     expect(api.playbackEnded).toHaveBeenCalledTimes(1);
   });
 
-  it('初始為暫停時，建立 player 後套用 pauseVideo', () => {
+  it('初始為暫停時，player 就緒(onReady)後才套用 pauseVideo', () => {
     renderReady(<Player current={makeSong()} isPaused={true} />);
+    // onReady 尚未觸發前不應呼叫控制方法（避免 not a function）。
+    expect(playerMethods.pauseVideo).not.toHaveBeenCalled();
+
+    // 模擬 iframe 就緒。
+    act(() => readyListener?.());
     expect(playerMethods.pauseVideo).toHaveBeenCalled();
   });
 });
