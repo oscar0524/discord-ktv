@@ -1,6 +1,7 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { ThemeProvider } from './theme/ThemeContext';
+import { YouTubeApiProvider } from './youtube/YouTubeApiContext';
 import App from './App';
 import './styles.scss';
 
@@ -12,7 +13,9 @@ if (!container) {
 createRoot(container).render(
   <StrictMode>
     <ThemeProvider>
-      <App />
+      <YouTubeApiProvider>
+        <App />
+      </YouTubeApiProvider>
     </ThemeProvider>
   </StrictMode>,
 );
