@@ -92,7 +92,8 @@ export function DanmakuOverlay({
           sx={{
             position: 'absolute',
             top: `${(d.lane / DANMAKU_LANES) * 100}%`,
-            left: 0,
+            // 起點貼容器右緣外側；動畫接手後接管 left/transform。
+            left: '100%',
             whiteSpace: 'nowrap',
             fontWeight: 700,
             fontSize: '1.5rem',

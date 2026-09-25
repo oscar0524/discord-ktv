@@ -13,12 +13,17 @@ body,
   margin: 0;
 }
 
-// 彈幕：從右緣外側飄到左緣外側
+// 彈幕：從容器右緣外側飄到左緣外側。
+// 用 translateX 相對「自身寬度」會讓短文字看起來從中間才出現，
+// 因此起點固定在容器右緣（left: 100%），再用 translateX(-100%) 相對自身
+// 完全移出左緣，讓進場點與文字長度無關、必從最右邊出現。
 @keyframes ktv-danmaku-scroll {
   from {
-    transform: translateX(100%);
+    left: 100%;
+    transform: translateX(0);
   }
   to {
+    left: 0;
     transform: translateX(-100%);
   }
 }

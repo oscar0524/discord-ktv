@@ -37,10 +37,12 @@ describe('applyIntent', () => {
     expect(state.current?.requestedBy).toBe('oscar');
     expect(resolveTitle).toHaveBeenCalledWith('dQw4w9WgXcQ');
 
-    expect(published).toHaveLength(1);
-    expect((published[0] as { type: string }).type).toBe(
-      KtvEventType.QueueUpdated
-    );
+    // enqueue 會 publish QueueUpdated + Danmaku 兩則
+    const types = published.map((e) => (e as { type: string }).type);
+    expect(types).toEqual([KtvEventType.QueueUpdated, KtvEventType.Danmaku]);
+    const danmaku = published[1] as { payload: { text: string } };
+    expect(danmaku.payload.text).toContain('oscar');
+    expect(danmaku.payload.text).toContain('Never Gonna Give You Up');
   });
 
   it('enqueue：抓標題失敗（回 null）時不設 title，回覆 fallback 到 videoId', async () => {
@@ -158,7 +160,10 @@ describe('applyIntent', () => {
     expect(types).toEqual([
       KtvEventType.QueueMoveToFront,
       KtvEventType.QueueUpdated,
+      KtvEventType.Danmaku,
     ]);
+    const danmaku = published[2] as { payload: { text: string } };
+    expect(danmaku.payload.text).toContain('插到最前面');
   });
 
   it('move_front：找不到編號時回提示、不 publish', async () => {

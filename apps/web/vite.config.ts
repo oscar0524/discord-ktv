@@ -14,6 +14,14 @@ export default defineConfig({
       ),
     },
   },
+  css: {
+    preprocessorOptions: {
+      scss: {
+        // 使用 Sass modern API,避免 legacy JS API 的 deprecation 警告
+        api: 'modern-compiler',
+      },
+    },
+  },
   server: {
     port: Number(process.env.WEB_PORT ?? 4200),
     host: true,

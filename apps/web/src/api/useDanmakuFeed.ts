@@ -34,6 +34,8 @@ export function useDanmakuFeed(
   // 用 ref 保存最新 callback，避免把它放進 effect 依賴而反覆重連
   const callbackRef = useRef(onDanmaku);
   callbackRef.current = onDanmaku;
+  // 保存目前這條連線，讓 cleanup 能確實關閉，避免重複訂閱
+  const wsRef = useRef<WebSocket | null>(null);
 
   useEffect(() => {
     let closedByUs = false;
@@ -41,6 +43,7 @@ export function useDanmakuFeed(
 
     const connect = (): void => {
       const ws = new WebSocket(wsEndpoint);
+      wsRef.current = ws;
 
       ws.onclose = () => {
         if (!closedByUs) {
@@ -67,6 +70,9 @@ export function useDanmakuFeed(
     return () => {
       closedByUs = true;
       if (reconnectTimer) clearTimeout(reconnectTimer);
+      // 確實關閉連線，避免 StrictMode 雙重掛載 / 重新掛載時殘留舊訂閱
+      wsRef.current?.close();
+      wsRef.current = null;
     };
   }, []);
 

@@ -45,6 +45,14 @@ export function formatQueueList(state: QueueState, limit = 10): string {
  */
 export type TitleResolver = (videoId: string) => Promise<string | null>;
 
+/** 發布一則彈幕事件（讓 enqueue / move_front 等動作也在大螢幕飄字通知） */
+async function publishDanmaku(pub: Redis, text: string): Promise<void> {
+  await publishEvent(pub, {
+    type: KtvEventType.Danmaku,
+    payload: { text },
+  });
+}
+
 /**
  * 依據意圖執行副作用：更新 Redis 佇列狀態並發布事件。
  * 回傳一段給使用者的回覆文字（bot 會在 Discord 回覆），無需回覆時為 null。
@@ -88,6 +96,8 @@ export async function applyIntent(
         state.current?.id === song.id
           ? '即將播放'
           : `第 ${state.items.length} 順位`;
+      // 大螢幕飄一則點歌通知
+      await publishDanmaku(pub, `🎵 ${requestedBy} 點了 ${songLabel(stored)}`);
       return `已點歌 🎵 ${songLabel(stored)}（編號 ${stored.songNumber}，${position}）`;
     }
 
@@ -143,6 +153,11 @@ export async function applyIntent(
         type: KtvEventType.QueueUpdated,
         payload: state,
       });
+      // 大螢幕飄一則插歌通知
+      await publishDanmaku(
+        pub,
+        `⏫ ${requestedBy} 把 ${songLabel(target)} 插到最前面`
+      );
       return `⏫ 已把 ${songLabel(target)}（編號 ${intent.songNumber}）插到最前面，即將播放`;
     }
 

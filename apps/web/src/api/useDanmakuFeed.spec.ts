@@ -92,4 +92,13 @@ describe('useDanmakuFeed', () => {
 
     expect(result.current.latest).toBeNull();
   });
+
+  it('unmount 時關閉 WebSocket，不殘留訂閱', () => {
+    const { unmount } = renderHook(() => useDanmakuFeed());
+    const ws = FakeWebSocket.instances[0];
+
+    unmount();
+
+    expect(ws.close).toHaveBeenCalledTimes(1);
+  });
 });

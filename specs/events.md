@@ -6,16 +6,16 @@
 
 事件形狀為 `KtvEvent`：`{ type, payload }`。
 
-| `type` (`KtvEventType`) | 值                    | 發布者                       | payload                    | 語意                                                                                                   |
-| ----------------------- | --------------------- | ---------------------------- | -------------------------- | ------------------------------------------------------------------------------------------------------ |
-| `QueueUpdated`          | `queue_updated`       | discord-bot（enqueue 後）    | `QueueState`               | 佇列內容已變動，帶最新完整狀態。                                                                       |
-| `Skip`                  | `skip`                | discord-bot / api 控制端點   | `{ reason?: string }`      | 跳過目前歌曲（`reason: "ended"` 表示播完自動跳）。                                                     |
-| `Pause`                 | `pause`               | discord-bot / api 控制端點   | `{}`                       | 暫停播放。                                                                                             |
-| `Play`                  | `play`                | discord-bot / api 控制端點   | `{}`                       | 繼續播放。                                                                                             |
-| `QueueMoveToFront`      | `queue_move_to_front` | discord-bot / api 控制端點   | `{ songNumber: number }`   | 把指定 4 位編號的歌插到待播清單最前面（成為下一首），不打斷 `current`。                                |
-| `QueueReorder`          | `queue_reorder`       | api 控制端點（web 拖曳）     | `{ orderedIds: string[] }` | 依傳入的完整 id 順序重排待播清單 `items`。                                                             |
-| `ConfigUpdated`         | `config_updated`      | api（`PUT /config/discord`） | `{}`                       | Discord 設定已更新；**payload 不帶明文 token**，訂閱端（bot）收到後自行從 Redis 重讀最新設定並熱重連。 |
-| `Danmaku`               | `danmaku`             | discord-bot（非命令閒聊）    | `{ text: string }`         | 彈幕訊息，`text` 為已格式化的「暱稱：訊息」（bot 端截斷至 80 字）。一次性通知，不影響佇列狀態。        |
+| `type` (`KtvEventType`) | 值                    | 發布者                            | payload                    | 語意                                                                                                                        |
+| ----------------------- | --------------------- | --------------------------------- | -------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| `QueueUpdated`          | `queue_updated`       | discord-bot（enqueue 後）         | `QueueState`               | 佇列內容已變動，帶最新完整狀態。                                                                                            |
+| `Skip`                  | `skip`                | discord-bot / api 控制端點        | `{ reason?: string }`      | 跳過目前歌曲（`reason: "ended"` 表示播完自動跳）。                                                                          |
+| `Pause`                 | `pause`               | discord-bot / api 控制端點        | `{}`                       | 暫停播放。                                                                                                                  |
+| `Play`                  | `play`                | discord-bot / api 控制端點        | `{}`                       | 繼續播放。                                                                                                                  |
+| `QueueMoveToFront`      | `queue_move_to_front` | discord-bot / api 控制端點        | `{ songNumber: number }`   | 把指定 4 位編號的歌插到待播清單最前面（成為下一首），不打斷 `current`。                                                     |
+| `QueueReorder`          | `queue_reorder`       | api 控制端點（web 拖曳）          | `{ orderedIds: string[] }` | 依傳入的完整 id 順序重排待播清單 `items`。                                                                                  |
+| `ConfigUpdated`         | `config_updated`      | api（`PUT /config/discord`）      | `{}`                       | Discord 設定已更新；**payload 不帶明文 token**，訂閱端（bot）收到後自行從 Redis 重讀最新設定並熱重連。                      |
+| `Danmaku`               | `danmaku`             | discord-bot（閒聊 / 點歌 / 插歌） | `{ text: string }`         | 彈幕訊息，`text` 為已格式化字串（閒聊為「暱稱：訊息」截斷至 80 字；點歌與插歌各另發一則通知）。一次性通知，不影響佇列狀態。 |
 
 ### 事件如何被套用
 
