@@ -15,6 +15,7 @@ import {
 import { parseMessage } from './message-handler';
 import { applyIntent } from './actions';
 import { BotConnection } from './connection';
+import { resolveDisplayName } from './display-name';
 
 /**
  * 決定 bot 啟動時要套用的初始設定（純函式，方便測試）。
@@ -155,7 +156,11 @@ function createClient(
       const reply = await applyIntent(intent, {
         store: deps.store,
         pub: deps.pub,
-        requestedBy: message.author.username,
+        requestedBy: resolveDisplayName({
+          memberDisplayName: message.member?.displayName,
+          globalName: message.author.globalName,
+          username: message.author.username,
+        }),
       });
       if (reply) {
         await message.reply(reply);
